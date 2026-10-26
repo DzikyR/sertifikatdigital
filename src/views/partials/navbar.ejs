@@ -1,0 +1,56 @@
+<%
+  const navLinks = [
+    { href: '/', label: 'Beranda' },
+    { href: '/cari', label: 'Cari Sertifikat' },
+    { href: '/verify', label: 'Verifikasi' },
+  ].filter((l) => l.href !== '/cari' || feature('public.search'));
+%>
+<header class="sticky top-0 z-40 border-b-4 border-gold-400 bg-tsu-800 text-white shadow-md">
+  <nav class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+    <a href="/" class="flex items-center gap-3">
+      <%- include('./brand-logo') %>
+      <span class="leading-tight">
+        <span class="block text-sm font-bold sm:text-base"><%= brand.appName %></span>
+        <% if (brand.appSubtitle) { %><span class="block text-xs text-tsu-200"><%= brand.appSubtitle %></span><% } %>
+      </span>
+    </a>
+
+    <div class="hidden items-center gap-1 md:flex">
+      <% navLinks.forEach((link) => { %>
+        <a href="<%= link.href %>"
+           class="rounded-md px-3 py-2 text-sm font-medium transition <%= currentPath === link.href ? 'bg-tsu-900 text-gold-300' : 'text-tsu-100 hover:bg-tsu-700 hover:text-white' %>">
+          <%= link.label %>
+        </a>
+      <% }) %>
+      <% if (user) { %>
+        <a href="/dashboard" class="btn btn-accent ml-3">Dashboard</a>
+        <form action="/auth/logout" method="post" class="ml-1">
+          <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+          <button type="submit" class="rounded-md px-3 py-2 text-sm font-medium text-tsu-100 hover:bg-tsu-700 hover:text-white">Keluar</button>
+        </form>
+      <% } else { %>
+        <a href="/auth/login" class="btn btn-accent ml-3">Masuk</a>
+      <% } %>
+    </div>
+
+    <button type="button" class="rounded-md p-2 text-tsu-100 hover:bg-tsu-700 md:hidden"
+            data-toggle="mobile-menu" aria-controls="mobile-menu" aria-expanded="false" aria-label="Buka menu">
+      <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  </nav>
+
+  <div id="mobile-menu" class="hidden border-t border-tsu-700 px-4 pb-4 md:hidden">
+    <% navLinks.forEach((link) => { %>
+      <a href="<%= link.href %>" class="block rounded-md px-3 py-2 text-sm font-medium text-tsu-100 hover:bg-tsu-700"><%= link.label %></a>
+    <% }) %>
+    <a href="<%= user ? '/dashboard' : '/auth/login' %>" class="btn btn-accent mt-2 w-full"><%= user ? 'Dashboard' : 'Masuk' %></a>
+    <% if (user) { %>
+      <form action="/auth/logout" method="post" class="mt-2">
+        <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+        <button type="submit" class="btn btn-outline w-full">Keluar</button>
+      </form>
+    <% } %>
+  </div>
+</header>

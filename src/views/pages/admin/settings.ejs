@@ -1,0 +1,132 @@
+<%- include('../../partials/app/start', { pageTitle: 'Pengaturan Aplikasi', pageSubtitle: 'Atur logo, warna, nama, tagline, deskripsi, dan informasi footer. Perubahan langsung berlaku untuk semua pengguna.' }) %>
+<%
+  const groups = [
+    ['identity', 'Identitas & Logo'],
+    ['colors', 'Warna'],
+    ['pages', 'Beranda & Login'],
+    ['footer', 'Footer & Kontak'],
+  ];
+  const byGroup = (g) => settings.fields.filter((f) => f.group === g);
+%>
+
+<div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]" id="settings" data-defaults='<%= JSON.stringify(settings.defaults) %>'>
+  <div class="space-y-6">
+    <!-- Logo -->
+    <section class="card">
+      <h2 class="font-bold text-slate-900">Logo Aplikasi</h2>
+      <p class="mt-1 text-sm text-slate-500">Tampil di header, sidebar, halaman login, footer, email sertifikat, dan ikon tab browser (favicon).</p>
+      <div class="mt-4 flex flex-wrap items-center gap-5">
+        <div class="flex h-24 w-24 items-center justify-center rounded-2xl border border-slate-200 bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:12px_12px]" data-logo-box>
+          <% if (settings.logoUrl) { %><img src="<%= settings.logoUrl %>" alt="Logo saat ini" class="h-20 w-20 object-contain"><% } else { %><span class="text-xs text-slate-400">Belum ada</span><% } %>
+        </div>
+        <form class="min-w-0 flex-1 space-y-2" data-upload-form data-url="/api/admin/settings/logo" data-field="logo">
+          <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" required class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-tsu-50 file:px-3 file:py-2 file:font-semibold file:text-tsu-700 hover:file:bg-tsu-100">
+          <p class="text-xs text-slate-500">PNG transparan atau SVG paling bagus, bentuk persegi. Maks. 5 MB. Bila tidak ada gambar, dipakai <strong>teks logo</strong> di tab Identitas.</p>
+          <div class="flex flex-wrap gap-2">
+            <button class="btn btn-primary"><%= settings.logoUrl ? 'Ganti Logo' : 'Unggah Logo' %></button>
+            <% if (settings.logoUrl) { %>
+              <button type="button" class="btn text-red-600 hover:bg-red-50" data-action="DELETE /api/admin/settings/logo" data-confirm="Hapus logo? Aplikasi akan memakai teks logo." data-danger data-ok-label="Hapus logo">Hapus Logo</button>
+            <% } %>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Teks & warna -->
+    <form class="card p-0" data-settings-form autocomplete="off" novalidate>
+      <div class="flex gap-1 overflow-x-auto border-b border-slate-200 px-4" role="tablist" data-settings-tabs>
+        <% groups.forEach(([g, label], i) => { %>
+          <button type="button" role="tab" data-stab="<%= g %>" aria-selected="<%= i === 0 %>" class="-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold <%= i === 0 ? 'border-tsu-700 text-tsu-800' : 'border-transparent text-slate-500 hover:text-tsu-700' %>"><%= label %></button>
+        <% }) %>
+      </div>
+
+      <% groups.forEach(([g], i) => { %>
+        <div class="space-y-5 p-6 <%= i ? 'hidden' : '' %>" data-spanel="<%= g %>">
+          <% if (g === 'colors') { %>
+            <p class="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Gradasi warna (lebih terang/gelap) dibuat otomatis dari dua warna ini dan dipakai di seluruh aplikasi: header, sidebar, tombol, tautan, badge, dan email. Lihat hasilnya di panel pratinjau.</p>
+          <% } %>
+          <% byGroup(g).forEach((f) => { const id = `set-${f.key}`; %>
+            <div data-field="<%= f.key %>">
+              <div class="flex items-baseline justify-between gap-3">
+                <label for="<%= id %>" class="form-label"><%= f.label %><% if (f.required) { %> <span class="text-red-600">*</span><% } %></label>
+                <button type="button" class="shrink-0 text-xs font-semibold text-tsu-700 hover:underline <%= f.custom ? '' : 'hidden' %>" data-reset-field="<%= f.key %>" title="Kembalikan ke nilai default">Default</button>
+              </div>
+              <% if (f.type === 'color') { %>
+                <div class="flex items-center gap-2" data-color-pair>
+                  <input type="color" id="<%= id %>" name="<%= f.key %>" value="<%= f.value %>" class="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-slate-300 bg-white p-1">
+                  <input type="text" data-hex-for="<%= f.key %>" value="<%= f.value.toUpperCase() %>" maxlength="7" spellcheck="false" aria-label="Kode HEX <%= f.label %>" class="form-input max-w-36 font-mono uppercase">
+                  <span class="text-xs text-slate-500" data-contrast-for="<%= f.key %>"></span>
+                </div>
+              <% } else if (f.type === 'textarea') { %>
+                <textarea id="<%= id %>" name="<%= f.key %>" rows="3" maxlength="<%= f.max %>" class="form-input" placeholder="<%= f.defaultValue %>"><%= f.value %></textarea>
+              <% } else { %>
+                <input id="<%= id %>" name="<%= f.key %>" type="<%= f.type === 'email' ? 'email' : f.type === 'url' ? 'url' : 'text' %>" maxlength="<%= f.max %>" value="<%= f.value %>" class="form-input" placeholder="<%= f.defaultValue || (f.type === 'url' ? 'https://' : '') %>">
+              <% } %>
+              <% if (f.max && f.type !== 'color') { %><p class="mt-1 text-right text-[11px] text-slate-400" data-count-for="<%= f.key %>"></p><% } %>
+            </div>
+          <% }) %>
+          <% if (g === 'colors') { %>
+            <div>
+              <p class="form-label">Kombinasi siap pakai</p>
+              <div class="flex flex-wrap gap-2" data-color-presets>
+                <% [['Biru & Emas (default)', '#0c2c5e', '#fbb625'], ['Hijau & Kuning', '#14532d', '#facc15'], ['Merah Marun & Emas', '#7f1d1d', '#fbbf24'], ['Ungu & Jingga', '#3b0764', '#fb923c'], ['Teal & Kuning', '#134e4a', '#fde047'], ['Abu Gelap & Biru Muda', '#1e293b', '#38bdf8']].forEach(([n, p, a]) => { %>
+                  <button type="button" class="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-tsu-400" data-preset-primary="<%= p %>" data-preset-accent="<%= a %>">
+                    <span class="flex overflow-hidden rounded" aria-hidden="true"><span class="h-5 w-5" data-swatch="<%= p %>"></span><span class="h-5 w-5" data-swatch="<%= a %>"></span></span><%= n %>
+                  </button>
+                <% }) %>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      <% }) %>
+
+      <div class="flex flex-wrap items-center gap-3 border-t border-slate-200 bg-slate-50/60 px-6 py-4">
+        <span class="hidden text-sm font-medium text-amber-700" data-settings-dirty>● Ada perubahan belum disimpan</span>
+        <button type="button" class="btn ml-auto text-slate-600 hover:bg-slate-100" data-action="POST /api/admin/settings/reset" data-body='{"keepLogo":true}' data-confirm="Semua teks dan warna dikembalikan ke default. Logo yang diunggah tetap dipakai." data-confirm-title="Kembalikan ke default?" data-ok-label="Kembalikan">Kembalikan Semua ke Default</button>
+        <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Pratinjau langsung -->
+  <aside class="space-y-3 xl:sticky xl:top-20">
+    <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Pratinjau Langsung</h2>
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" data-preview>
+      <div class="flex items-center gap-2.5 px-4 py-3 text-white" data-pv="header">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-extrabold" data-pv="logo">
+          <% if (settings.logoUrl) { %><img src="<%= settings.logoUrl %>" alt="" class="h-full w-full bg-white object-contain p-0.5"><% } %>
+        </span>
+        <span class="min-w-0 leading-tight">
+          <span class="block truncate text-sm font-bold" data-pv="appName"></span>
+          <span class="block truncate text-[11px] opacity-80" data-pv="appSubtitle"></span>
+        </span>
+      </div>
+      <div class="px-4 py-5 text-white" data-pv="hero">
+        <span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" data-pv="heroBadge"></span>
+        <p class="mt-2 text-lg font-extrabold leading-snug"><span data-pv="heroTitle"></span> <span data-pv="heroHighlight"></span></p>
+        <p class="mt-1.5 line-clamp-3 text-xs opacity-90" data-pv="heroDescription"></p>
+        <div class="mt-3 flex gap-2">
+          <span class="rounded-md px-2.5 py-1.5 text-[11px] font-semibold" data-pv="btnAccent">Cari Sertifikat</span>
+          <span class="rounded-md border border-white/40 px-2.5 py-1.5 text-[11px] font-semibold">Verifikasi</span>
+        </div>
+      </div>
+      <div class="space-y-2 p-4">
+        <p class="text-xs font-semibold" data-pv="feature1Title"></p>
+        <div class="flex flex-wrap gap-2">
+          <span class="rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-white" data-pv="btnPrimary">Tombol utama</span>
+          <span class="rounded-md border px-2.5 py-1.5 text-[11px] font-semibold" data-pv="btnOutline">Tombol garis</span>
+          <span class="rounded-full px-2 py-1 text-[10px] font-semibold" data-pv="badge">Badge</span>
+        </div>
+      </div>
+      <div class="px-4 py-3 text-[11px]" data-pv="footer">
+        <p>&copy; <%= currentYear %> <span data-pv="footerCopyright"></span></p>
+        <p class="mt-0.5 opacity-75" data-pv="footerNote"></p>
+        <p class="mt-1 opacity-75" data-pv="contact"></p>
+      </div>
+    </div>
+    <ul class="space-y-1 text-xs" data-contrast-warnings></ul>
+    <p class="text-xs text-slate-500">Pratinjau ini hanya gambaran. Setelah disimpan, buka <a href="/" target="_blank" rel="noopener" class="font-semibold text-tsu-700 hover:underline">beranda</a> atau <a href="/auth/login" target="_blank" rel="noopener" class="font-semibold text-tsu-700 hover:underline">halaman login</a> untuk melihat hasil sebenarnya.</p>
+  </aside>
+</div>
+
+<%- include('../../partials/app/end') %>

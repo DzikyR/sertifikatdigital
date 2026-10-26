@@ -1,0 +1,197 @@
+<%- include('../../partials/app/start') %>
+
+<div id="builder" data-event-id="<%= event.id %>" data-event-title="<%= event.title %>" data-event-theme="<%= event.theme || '' %>" data-event-date="<%= fmtDate(event.eventDate) %>" class="mt-2">
+  <!-- Toolbar -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="truncate text-xl font-bold text-slate-900">Certificate Builder</h1>
+      <p class="text-sm text-slate-500" data-builder-hint>Seret elemen di atas template, atau atur koordinat di panel kanan.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="hidden text-xs font-medium text-amber-700" data-dirty-indicator>● Ada perubahan belum disimpan</span>
+      <a href="/events/<%= event.id %>#template" class="btn btn-outline">Kembali</a>
+      <button type="button" class="btn btn-outline" data-preview>Preview PDF</button>
+      <button type="button" class="btn btn-primary hidden" data-save>Simpan Layout</button>
+    </div>
+  </div>
+
+  <div class="mt-4 hidden rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" data-readonly-note>
+    Layout hanya dapat dilihat. Event sedang terkunci, Anda bukan penyelenggaranya, atau fitur builder dinonaktifkan oleh Super Admin.
+  </div>
+
+  <div class="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+    <!-- Canvas -->
+    <div class="card p-3">
+      <div class="relative overflow-hidden rounded-lg bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:16px_16px]" data-canvas-wrap>
+        <div class="flex h-96 items-center justify-center text-sm text-slate-500" data-canvas-loading>Memuat template...</div>
+        <canvas id="builder-canvas" aria-label="Kanvas desain sertifikat"></canvas>
+      </div>
+      <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+        <span>Tips: klik elemen lalu gunakan tombol panah (Shift = 10px) untuk geser presisi. Tarik sudut untuk mengubah ukuran.</span>
+        <span data-zoom-label></span>
+      </div>
+    </div>
+
+    <!-- Panel -->
+    <aside class="space-y-4">
+      <section class="card p-4">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Tema</h2>
+        <p class="mt-1 text-xs text-slate-500">Terapkan paduan font &amp; warna ke semua teks sekaligus. Posisi dan ukuran tidak berubah.</p>
+        <div class="mt-3 grid grid-cols-2 gap-2" data-theme-list></div>
+      </section>
+
+      <section class="card p-4" data-palette>
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Palet Warna</h2>
+        <p class="mt-1 text-xs text-slate-500">Klik warna untuk memakainya pada teks yang dipilih (bila tidak ada yang dipilih, kode warnanya disalin). Tombol <strong>pipet</strong> di samping setiap kolom warna mengambil warna langsung dari sertifikat.</p>
+        <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Dari template</p>
+        <div class="mt-1 flex flex-wrap gap-1.5" data-palette-template><span class="text-xs text-slate-400">Menganalisis template...</span></div>
+        <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sedang dipakai</p>
+        <div class="mt-1 flex flex-wrap gap-1.5" data-palette-used></div>
+      </section>
+
+      <section class="card p-4">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Elemen</h2>
+        <ul class="mt-3 space-y-1" data-element-list></ul>
+      </section>
+
+      <section class="card p-4" data-props-panel>
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Properti</h2>
+        <p class="mt-3 text-sm text-slate-500" data-props-empty>Pilih elemen di kanvas atau dari daftar di atas.</p>
+
+        <!-- Properti teks -->
+        <form class="mt-3 hidden space-y-3" data-props="field" autocomplete="off">
+          <p class="font-semibold text-slate-900" data-prop-title></p>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-xs font-medium text-slate-600">X (px)<input type="number" name="x" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Y (px)<input type="number" name="y" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Ukuran font<input type="number" name="fontSize" min="6" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Lebar maks.<input type="number" name="maxWidth" min="20" class="form-input mt-1 py-1.5"></label>
+          </div>
+          <label class="block text-xs font-medium text-slate-600">Font<select name="font" class="form-input mt-1 py-1.5" data-font-select></select></label>
+          <%- include('../../partials/builder-color') %>
+          <div>
+            <fieldset>
+              <legend class="text-xs font-medium text-slate-600">Perataan</legend>
+              <div class="mt-1 grid grid-cols-3 overflow-hidden rounded-lg border border-slate-300 text-xs font-semibold">
+                <% [['left', 'Kiri'], ['center', 'Tengah'], ['right', 'Kanan']].forEach(([v, l]) => { %>
+                  <label class="cursor-pointer text-center has-[:checked]:bg-tsu-700 has-[:checked]:text-white"><input type="radio" name="align" value="<%= v %>" class="sr-only"><span class="block py-2"><%= l %></span></label>
+                <% }) %>
+              </div>
+            </fieldset>
+          </div>
+          <label class="block text-xs font-medium text-slate-600">Awalan teks (opsional)<input name="prefix" maxlength="60" class="form-input mt-1 py-1.5" placeholder='mis. "No: " atau "Sebagai "'></label>
+          <p class="text-xs text-slate-500">X mengikuti perataan (kiri/tengah/kanan teks), Y = garis tengah teks. Teks yang lebih panjang dari lebar maks. otomatis diperkecil di PDF.</p>
+        </form>
+
+        <!-- Properti teks kustom -->
+        <form class="mt-3 hidden space-y-3" data-props="text" autocomplete="off">
+          <p class="font-semibold text-slate-900" data-prop-title></p>
+          <label class="block text-xs font-medium text-slate-600">Isi teks
+            <textarea name="text" rows="5" maxlength="1000" class="form-input mt-1 py-1.5 text-sm" placeholder="mis. atas partisipasinya dalam kegiatan {kegiatan}"></textarea>
+          </label>
+          <div>
+            <p class="text-xs font-medium text-slate-600">Sisipkan isian otomatis:</p>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <% [['{nama}', 'Nama'], ['{peran}', 'Peran'], ['{instansi}', 'Instansi'], ['{nomor}', 'No. sertifikat'], ['{kegiatan}', 'Kegiatan'], ['{tema}', 'Tema'], ['{hari}', 'Hari'], ['{tanggal}', 'Tanggal'], ['{lokasi}', 'Lokasi']].forEach(([token, label]) => { %>
+                <button type="button" data-insert="<%= token %>" title="Sisipkan <%= label %>" class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 hover:border-tsu-300 hover:bg-tsu-50"><%= token %></button>
+              <% }) %>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">Tekan Enter untuk baris baru. Teks juga pindah baris otomatis bila melebihi lebar kotak.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-xs font-medium text-slate-600">X (px)<input type="number" name="x" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Y (px)<input type="number" name="y" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Ukuran font<input type="number" name="fontSize" min="6" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Lebar kotak<input type="number" name="maxWidth" min="20" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Jarak baris<input type="number" name="lineHeight" min="0.8" max="3" step="0.05" class="form-input mt-1 py-1.5"></label>
+          </div>
+          <%- include('../../partials/builder-color') %>
+          <label class="block text-xs font-medium text-slate-600">Font<select name="font" class="form-input mt-1 py-1.5" data-font-select></select></label>
+          <fieldset>
+            <legend class="text-xs font-medium text-slate-600">Perataan</legend>
+            <div class="mt-1 grid grid-cols-3 overflow-hidden rounded-lg border border-slate-300 text-xs font-semibold">
+              <% [['left', 'Kiri'], ['center', 'Tengah'], ['right', 'Kanan']].forEach(([v, l]) => { %>
+                <label class="cursor-pointer text-center has-[:checked]:bg-tsu-700 has-[:checked]:text-white"><input type="radio" name="align" value="<%= v %>" class="sr-only"><span class="block py-2"><%= l %></span></label>
+              <% }) %>
+            </div>
+          </fieldset>
+          <p class="text-xs text-slate-500">Di kanvas, isian otomatis ditampilkan dengan data contoh. Di PDF diganti data tiap peserta. Tarik sisi kiri/kanan kotak untuk mengubah lebar.</p>
+          <button type="button" class="btn w-full text-red-600 hover:bg-red-50" data-remove-text>Hapus Teks Ini</button>
+        </form>
+
+        <!-- Properti logo -->
+        <form class="mt-3 hidden space-y-3" data-props="logo" autocomplete="off">
+          <p class="font-semibold text-slate-900" data-prop-title></p>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-xs font-medium text-slate-600">X<input type="number" name="x" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Y<input type="number" name="y" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Lebar<input type="number" name="width" min="10" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Tinggi<input type="number" name="height" min="10" class="form-input mt-1 py-1.5" disabled></label>
+          </div>
+          <p class="text-xs text-slate-500">Tinggi mengikuti proporsi logo. Tarik sudut logo di kanvas untuk mengubah ukuran. Logo dicetak di bawah lapisan teks.</p>
+        </form>
+
+        <!-- Properti QR -->
+        <form class="mt-3 hidden space-y-3" data-props="qr" autocomplete="off">
+          <p class="font-semibold text-slate-900">QR Code Verifikasi</p>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="text-xs font-medium text-slate-600">X<input type="number" name="x" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Y<input type="number" name="y" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Ukuran<input type="number" name="size" min="40" class="form-input mt-1 py-1.5"></label>
+          </div>
+          <p class="text-xs text-slate-500">QR berisi tautan verifikasi unik per peserta. Beri ukuran minimal ~2,5 cm saat dicetak agar mudah dipindai.</p>
+        </form>
+
+        <!-- Properti TTD -->
+        <form class="mt-3 hidden space-y-3" data-props="sig" autocomplete="off">
+          <p class="font-semibold text-slate-900" data-prop-title></p>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-xs font-medium text-slate-600">X<input type="number" name="x" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Y<input type="number" name="y" min="0" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Lebar<input type="number" name="width" min="10" class="form-input mt-1 py-1.5"></label>
+            <label class="text-xs font-medium text-slate-600">Tinggi<input type="number" name="height" min="10" class="form-input mt-1 py-1.5" disabled></label>
+          </div>
+          <p class="text-xs text-slate-500" data-sig-caption-note></p>
+        </form>
+      </section>
+
+      <section class="card p-4">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Kode Isian Otomatis</h2>
+        <p class="mt-1 text-xs text-slate-500">Tulis kode ini di <strong>Teks Kustom</strong>; di PDF diganti dengan data tiap peserta/event. Klik kode untuk menyisipkannya ke teks yang sedang dipilih (atau menyalinnya).</p>
+        <div class="mt-3 overflow-hidden rounded-lg border border-slate-200">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+              <tr><th class="px-2 py-1.5 font-semibold">Kode</th><th class="px-2 py-1.5 font-semibold">Isi &amp; contoh</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100" data-placeholder-ref></tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs text-slate-500">Contoh: <code class="rounded bg-slate-100 px-1">pada hari {hari}, {tanggal} di {lokasi}</code></p>
+      </section>
+
+      <section class="card p-4">
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Teks di bawah TTD</h2>
+        <form class="mt-3 grid grid-cols-2 items-end gap-2" data-sigtext autocomplete="off">
+          <label class="col-span-2 text-xs font-medium text-slate-600">Ukuran font<input type="number" name="fontSize" min="6" max="200" class="form-input mt-1 py-1.5"></label>
+          <%- include('../../partials/builder-color', { cls: 'col-span-2' }) %>
+          <label class="col-span-2 text-xs font-medium text-slate-600">Font nama penanda tangan<select name="font" class="form-input mt-1 py-1.5" data-font-select></select></label>
+          <label class="col-span-2 text-xs font-medium text-slate-600">Font jabatan / NIP<select name="titleFont" class="form-input mt-1 py-1.5" data-font-select></select></label>
+        </form>
+        <p class="mt-2 text-xs text-slate-500">Kelola file TTD (tambah/hapus) di tab <a href="/events/<%= event.id %>#template" class="font-semibold text-tsu-700 hover:underline">Template &amp; TTD</a>.</p>
+      </section>
+
+      <section class="card p-4" data-custom-fonts>
+        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Font Kustom</h2>
+        <p class="mt-1 text-xs text-slate-500">Tambahkan jenis font baru (TTF, OTF, atau WOFF, maks. 5 MB). Font dapat dipakai di semua event. Pastikan lisensi font mengizinkan penyematan (embedding) di PDF.</p>
+        <form class="mt-3 hidden space-y-2" data-font-upload autocomplete="off">
+          <input type="file" name="font" accept=".ttf,.otf,.woff" required class="block w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-tsu-50 file:px-3 file:py-2 file:font-semibold file:text-tsu-700 hover:file:bg-tsu-100">
+          <input name="name" maxlength="80" class="form-input py-1.5 text-sm" placeholder="Nama tampilan (opsional, otomatis dari file)">
+          <button class="btn btn-outline w-full">Unggah Font</button>
+        </form>
+        <ul class="mt-3 space-y-1 text-sm" data-font-list></ul>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<%- include('../../partials/app/end') %>

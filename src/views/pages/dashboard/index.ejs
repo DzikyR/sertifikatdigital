@@ -1,0 +1,191 @@
+<%
+  const ev = stats.events;
+  const cert = stats.certificates;
+  const totalEvents = Object.values(ev.byStatus).reduce((a, b) => a + b, 0);
+  const sent = cert.email.SENT || 0;
+  const failed = cert.email.FAILED || 0;
+  const isHmp = user.role === 'HMP';
+
+  // ---- Grafik kolom bertumpuk: kegiatan per bulan (PRODI bawah, HMP atas) ----
+  const series = isHmp ? [{ key: 'HMP', label: 'HMP', color: '#f59e0b', cls: 'bg-gold-500' }]
+                       : [{ key: 'PRODI', label: 'Prodi', color: '#2259b5', cls: 'bg-tsu-500' }, { key: 'HMP', label: 'HMP', color: '#f59e0b', cls: 'bg-gold-500' }];
+  const W = 720, H = 240, padL = 32, padR = 8, padT = 16, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const totals = stats.monthly.map((m) => series.reduce((s, sr) => s + m[sr.key], 0));
+  const maxVal = Math.max(4, ...totals);
+  const step = Math.ceil(maxVal / 4);
+  const yMax = step * 4;
+  const band = plotW / stats.monthly.length;
+  const barW = Math.min(24, band * 0.6);
+  const y = (v) => padT + plotH - (v / yMax) * plotH;
+  const monthLabel = (key) => new Date(`${key}-01T00:00:00`).toLocaleString('id-ID', { month: 'short' });
+  const monthLong = (key) => new Date(`${key}-01T00:00:00`).toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+  // kolom dengan sudut atas membulat 4px, dasar persegi
+  const topRounded = (x, yy, w, h, r) => {
+    const rr = Math.min(r, h, w / 2);
+    return `M${x},${yy + h}V${yy + rr}Q${x},${yy} ${x + rr},${yy}H${x + w - rr}Q${x + w},${yy} ${x + w},${yy + rr}V${yy + h}Z`;
+  };
+  const hasData = totals.some((t) => t > 0);
+%>
+<%- include('../../partials/app/start', { pageTitle: `Halo, ${user.name.split(' ')[0]}`, pageSubtitle: `Ringkasan ${isHmp ? 'kegiatan HMP' : 'seluruh kegiatan Prodi & HMP'}.`,
+  actions: ['ADMIN', 'HMP'].includes(user.role) && feature('event.create') ? '<a href="/events/new" class="btn btn-primary">+ Buat Event</a>' : '' }) %>
+
+<% if (user.role === 'SUPER_ADMIN' && pendingUsers) { %>
+  <a href="/admin/users#permintaan" class="mb-4 flex items-center gap-3 rounded-xl border border-gold-300 bg-gold-50 p-4 text-sm text-gold-700 transition hover:bg-gold-100">
+    <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+    <span class="flex-1"><strong><%= pendingUsers %> permintaan akses</strong> menunggu persetujuan Anda.</span>
+    <span class="font-semibold">Tinjau &rarr;</span>
+  </a>
+<% } %>
+
+<!-- Stat tiles -->
+<section class="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Ringkasan">
+  <% const tiles = [
+    { label: 'Total Event', value: totalEvents, sub: `${ev.byStatus.PUBLISHED || 0} sudah terbit` },
+    user.role === 'ADMIN'
+      ? { label: 'Menunggu Persetujuan', value: ev.pendingApprovals, sub: 'draf dari HMP', href: feature('approval.review') ? '/approvals' : null, accent: ev.pendingApprovals > 0 }
+      : { label: 'Draf Aktif', value: (ev.byStatus.DRAFT || 0) + (ev.byStatus.REJECTED || 0), sub: `${ev.byStatus.REJECTED || 0} perlu revisi` },
+    { label: 'Sertifikat Terbit', value: cert.issued, sub: `dari ${fmtNumber(cert.total)} peserta` },
+    { label: 'Email Terkirim', value: sent, sub: failed ? `${failed} gagal dikirim` : `${fmtNumber(cert.downloads)} kali diunduh`, warn: failed > 0 },
+  ]; %>
+  <% tiles.forEach((t) => { %>
+    <<%= t.href ? 'a href=' + t.href : 'div' %> class="card relative overflow-hidden p-5 <%= t.href ? 'transition hover:border-tsu-300 hover:shadow-md' : '' %>">
+      <% if (t.accent) { %><span class="absolute inset-x-0 top-0 h-1 bg-gold-400"></span><% } %>
+      <p class="text-sm font-medium text-slate-500"><%= t.label %></p>
+      <p class="mt-2 text-3xl font-extrabold tabular-nums text-slate-900"><%= fmtNumber(t.value) %></p>
+      <p class="mt-1 flex items-center gap-1 text-xs <%= t.warn ? 'font-semibold text-red-700' : 'text-slate-500' %>">
+        <% if (t.warn) { %><svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg><% } %>
+        <%= t.sub %>
+      </p>
+    </<%= t.href ? 'a' : 'div' %>>
+  <% }) %>
+</section>
+
+<% if (stats.system) { %>
+<section class="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Sistem">
+  <% [['Super Admin', stats.system.usersByRole.SUPER_ADMIN], ['Kaprodi / Admin Prodi', stats.system.usersByRole.ADMIN], ['Pengurus HMP', stats.system.usersByRole.HMP]].forEach(([l, v]) => { %>
+    <a href="/admin/users" class="card p-5 transition hover:border-tsu-300"><p class="text-sm text-slate-500">User <%= l %></p><p class="mt-2 text-2xl font-bold tabular-nums"><%= fmtNumber(v) %></p></a>
+  <% }) %>
+  <a href="/admin/logs?action=LOGIN_FAILED" class="card p-5 transition hover:border-tsu-300">
+    <p class="text-sm text-slate-500">Login gagal (24 jam)</p>
+    <p class="mt-2 text-2xl font-bold tabular-nums <%= stats.system.failedLogins24h > 10 ? 'text-red-700' : '' %>"><%= fmtNumber(stats.system.failedLogins24h) %></p>
+  </a>
+</section>
+<% } %>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+  <!-- Grafik -->
+  <section class="card lg:col-span-2" aria-labelledby="chart-title">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 id="chart-title" class="font-bold text-slate-900">Kegiatan per Bulan</h2>
+        <p class="text-sm text-slate-500">Berdasarkan tanggal kegiatan, 9 bulan lalu hingga 2 bulan ke depan</p>
+      </div>
+      <% if (series.length > 1) { %>
+        <ul class="flex gap-4 text-sm text-slate-600" aria-label="Legenda">
+          <% series.forEach((s) => { %><li class="flex items-center gap-2"><span class="h-3 w-3 rounded-sm <%= s.cls %>"></span><%= s.label %></li><% }) %>
+        </ul>
+      <% } %>
+    </div>
+
+    <% if (!hasData) { %>
+      <div class="mt-6 flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm text-slate-500">Belum ada kegiatan dalam 12 bulan terakhir.</div>
+    <% } else { %>
+    <div class="relative mt-4" data-chart>
+      <svg viewBox="0 0 <%= W %> <%= H %>" class="h-auto w-full" role="img" aria-label="Grafik jumlah kegiatan per bulan">
+        <% for (let i = 0; i <= 4; i++) { const v = step * i; %>
+          <line x1="<%= padL %>" x2="<%= W - padR %>" y1="<%= y(v) %>" y2="<%= y(v) %>" stroke="#e2e8f0" stroke-width="1" />
+          <text x="<%= padL - 8 %>" y="<%= y(v) + 4 %>" text-anchor="end" font-size="11" fill="#64748b"><%= v %></text>
+        <% } %>
+        <% stats.monthly.forEach((m, i) => {
+             const cx = padL + band * i + band / 2;
+             const x = cx - barW / 2;
+             const total = totals[i];
+             const tip = [monthLong(m.key), ...series.map((s) => `${s.label}: ${m[s.key]}`)].join('|');
+             let base = y(0);
+             const segs = series.filter((s) => m[s.key] > 0);
+        %>
+          <g data-tip="<%= tip %>" tabindex="0" class="outline-none focus:[&>rect:first-child]:fill-slate-100">
+            <rect x="<%= padL + band * i %>" y="<%= padT %>" width="<%= band %>" height="<%= plotH %>" fill="transparent" class="hover:fill-slate-50" />
+            <% segs.forEach((s, si) => {
+                 const h = (m[s.key] / yMax) * plotH;
+                 const isTop = si === segs.length - 1;
+                 const gap = si > 0 ? 2 : 0;
+                 const top = base - h;
+            %>
+              <% if (isTop) { %>
+                <path d="<%= topRounded(x, top, barW, Math.max(h - gap, 1), 4) %>" fill="<%= s.color %>" pointer-events="none" />
+              <% } else { %>
+                <rect x="<%= x %>" y="<%= top %>" width="<%= barW %>" height="<%= Math.max(h - gap, 1) %>" fill="<%= s.color %>" pointer-events="none" />
+              <% } %>
+            <% base = top; }) %>
+            <% if (total > 0) { %><text x="<%= cx %>" y="<%= y(total) - 6 %>" text-anchor="middle" font-size="11" font-weight="600" fill="#334155" pointer-events="none"><%= total %></text><% } %>
+            <text x="<%= cx %>" y="<%= H - 8 %>" text-anchor="middle" font-size="11" fill="#64748b" pointer-events="none"><%= monthLabel(m.key) %></text>
+          </g>
+        <% }) %>
+      </svg>
+      <div class="pointer-events-none absolute z-10 hidden rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg" data-chart-tip></div>
+    </div>
+    <details class="mt-3 text-sm">
+      <summary class="cursor-pointer text-tsu-700 hover:underline">Lihat sebagai tabel</summary>
+      <div class="mt-2 overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs uppercase text-slate-500"><tr><th class="py-1.5 pr-4">Bulan</th><% series.forEach((s) => { %><th class="py-1.5 pr-4 text-right"><%= s.label %></th><% }) %><th class="py-1.5 text-right">Total</th></tr></thead>
+          <tbody class="divide-y divide-slate-100 tabular-nums">
+            <% stats.monthly.forEach((m, i) => { %><tr><td class="py-1.5 pr-4"><%= monthLong(m.key) %></td><% series.forEach((s) => { %><td class="py-1.5 pr-4 text-right"><%= m[s.key] %></td><% }) %><td class="py-1.5 text-right font-semibold"><%= totals[i] %></td></tr><% }) %>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <% } %>
+  </section>
+
+  <!-- Status event -->
+  <section class="card" aria-labelledby="status-title">
+    <h2 id="status-title" class="font-bold text-slate-900">Status Event</h2>
+    <ul class="mt-4 space-y-3">
+      <% Object.entries(EVENT_STATUS_META).forEach(([key, meta]) => { const n = ev.byStatus[key] || 0; const pct = totalEvents ? Math.round((n / totalEvents) * 100) : 0; %>
+        <li>
+          <div class="flex items-center justify-between text-sm">
+            <span class="badge ring-1 <%= meta.cls %>"><%= meta.label %></span>
+            <span class="font-semibold tabular-nums text-slate-700"><%= n %></span>
+          </div>
+          <svg class="mt-1.5 block h-1.5 w-full" aria-hidden="true"><rect width="100%" height="100%" rx="3" fill="#f1f5f9" /><% if (pct) { %><rect width="<%= pct %>%" height="100%" rx="3" fill="#2259b5" /><% } %></svg>
+        </li>
+      <% }) %>
+    </ul>
+    <% if (!isHmp) { %>
+      <p class="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500">
+        Prodi: <strong class="text-slate-800"><%= ev.byOrganizer.PRODI || 0 %></strong> &middot;
+        HMP: <strong class="text-slate-800"><%= ev.byOrganizer.HMP || 0 %></strong>
+      </p>
+    <% } %>
+  </section>
+</div>
+
+<!-- Event terbaru -->
+<section class="card mt-6 p-0" aria-labelledby="recent-title">
+  <div class="flex items-center justify-between px-6 py-4">
+    <h2 id="recent-title" class="font-bold text-slate-900">Aktivitas Event Terbaru</h2>
+    <% if (['ADMIN', 'HMP'].includes(user.role)) { %><a href="/events" class="text-sm font-semibold text-tsu-700 hover:underline">Lihat semua</a><% } %>
+  </div>
+  <% if (!stats.recentEvents.length) { %>
+    <p class="px-6 pb-6 text-sm text-slate-500">Belum ada event.<% if (['ADMIN', 'HMP'].includes(user.role) && feature('event.create')) { %> <a href="/events/new" class="font-semibold text-tsu-700 hover:underline">Buat event pertama</a>.<% } %></p>
+  <% } else { %>
+    <ul class="divide-y divide-slate-100 border-t border-slate-100">
+      <% stats.recentEvents.forEach((e) => { const meta = EVENT_STATUS_META[e.status]; %>
+        <li>
+          <<%= user.role === 'SUPER_ADMIN' ? 'div' : `a href="/events/${e.id}"` %> class="flex flex-wrap items-center gap-3 px-6 py-3 <%= user.role === 'SUPER_ADMIN' ? '' : 'hover:bg-slate-50' %>">
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-medium text-slate-900"><%= e.title %></p>
+              <p class="text-xs text-slate-500"><%= ORGANIZER_LABELS[e.organizerType] %> &middot; <%= fmtDate(e.eventDate) %> &middot; <%= e._count.certificates %> peserta</p>
+            </div>
+            <span class="badge ring-1 <%= meta.cls %>"><%= meta.label %></span>
+          </<%= user.role === 'SUPER_ADMIN' ? 'div' : 'a' %>>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</section>
+
+<%- include('../../partials/app/end') %>

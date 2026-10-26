@@ -1,0 +1,26 @@
+    </main>
+    <footer class="border-t border-slate-200 px-4 py-4 text-center text-xs text-slate-500 sm:px-6">
+      &copy; <%= currentYear %> <%= brand.footerCopyright %>
+    </footer>
+  </div>
+</div>
+
+<!-- Toast & dialog global (dikendalikan /js/main.js) -->
+<div id="toast-region" class="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 sm:items-end sm:pr-6" aria-live="polite"></div>
+
+<dialog id="app-dialog" class="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+  <form method="dialog" class="p-6">
+    <h2 class="text-lg font-bold text-slate-900" data-dialog-title></h2>
+    <p class="mt-2 text-sm text-slate-600" data-dialog-message></p>
+    <div class="mt-4 hidden" data-dialog-input-wrap>
+      <label class="form-label" data-dialog-input-label for="app-dialog-input"></label>
+      <textarea id="app-dialog-input" rows="3" maxlength="2000" class="form-input"></textarea>
+    </div>
+    <div class="mt-6 flex justify-end gap-2">
+      <button value="cancel" class="btn btn-outline">Batal</button>
+      <button value="ok" class="btn btn-primary" data-dialog-ok>OK</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

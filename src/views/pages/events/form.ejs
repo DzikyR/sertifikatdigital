@@ -1,0 +1,55 @@
+<%#
+  Form buat event (event = null) atau ubah info event (event = detail).
+  Disubmit via API (/js/main.js: data-api-form).
+%>
+<% const isEdit = Boolean(event); %>
+<% if (!isEdit) { %><%- include('../../partials/app/start', { pageTitle: 'Buat Event Baru', pageSubtitle: user.role === 'ADMIN' ? 'Event Prodi dapat langsung diterbitkan tanpa approval.' : 'Event HMP akan diajukan ke Kaprodi sebelum diterbitkan.' }) %><% } %>
+
+<form data-api-form data-method="<%= isEdit ? 'PATCH' : 'POST' %>" action="<%= isEdit ? `/api/events/${event.id}` : '/api/events' %>"
+      data-redirect="<%= isEdit ? '' : '/events/{id}#template' %>" data-success="<%= isEdit ? 'Info event diperbarui.' : 'Event dibuat. Lanjutkan dengan mengunggah template.' %>"
+      class="<%= isEdit ? '' : 'card max-w-3xl' %> space-y-5">
+  <div>
+    <label for="title" class="form-label">Nama Kegiatan <span class="text-red-600">*</span></label>
+    <input id="title" name="title" required maxlength="200" class="form-input" value="<%= isEdit ? event.title : '' %>" placeholder="mis. Seminar Nasional Kecerdasan Buatan 2026" <%= isEdit && !event.permissions.edit ? 'disabled' : '' %>>
+    <p class="mt-1 text-xs text-slate-500">Teks ini dicetak pada sertifikat sebagai Nama Kegiatan.</p>
+  </div>
+  <div>
+    <label for="theme" class="form-label">Tema Kegiatan</label>
+    <input id="theme" name="theme" maxlength="250" data-allow-empty class="form-input" value="<%= isEdit ? (event.theme || '') : '' %>" placeholder="mis. Jejak Pertama: Langkah Kecil Menuju Kolaborasi Besar" <%= isEdit && !event.permissions.edit ? 'disabled' : '' %>>
+    <p class="mt-1 text-xs text-slate-500">Opsional. Dapat dicetak di sertifikat lewat elemen &ldquo;Tema Kegiatan&rdquo; di Certificate Builder.</p>
+  </div>
+  <div class="grid gap-5 sm:grid-cols-2">
+    <div>
+      <label for="eventDate" class="form-label">Tanggal Kegiatan <span class="text-red-600">*</span></label>
+      <input id="eventDate" name="eventDate" type="date" required class="form-input" value="<%= isEdit ? new Date(event.eventDate).toISOString().slice(0, 10) : '' %>" <%= isEdit && !event.permissions.edit ? 'disabled' : '' %>>
+    </div>
+    <div>
+      <label for="location" class="form-label">Lokasi</label>
+      <input id="location" name="location" maxlength="200" class="form-input" value="<%= isEdit ? (event.location || '') : '' %>" placeholder="mis. Aula Utama TSU / Zoom" <%= isEdit && !event.permissions.edit ? 'disabled' : '' %>>
+    </div>
+  </div>
+  <div>
+    <label for="description" class="form-label">Deskripsi</label>
+    <textarea id="description" name="description" rows="3" maxlength="5000" class="form-input" <%= isEdit && !event.permissions.edit ? 'disabled' : '' %>><%= isEdit ? (event.description || '') : '' %></textarea>
+  </div>
+  <div>
+    <label for="certNumberFormat" class="form-label">Format Nomor Sertifikat</label>
+    <input id="certNumberFormat" name="certNumberFormat" maxlength="100" class="form-input font-mono" value="<%= isEdit ? event.certNumberFormat : 'INF/{EID}/{YYYY}/{SEQ:4}' %>" <%= isEdit && !event.permissions.edit ? 'disabled' : '' %>>
+    <p class="mt-1 text-xs text-slate-500">
+      Token: <code class="rounded bg-slate-100 px-1">{SEQ:4}</code> nomor urut (wajib) &middot;
+      <code class="rounded bg-slate-100 px-1">{YYYY}</code> tahun &middot;
+      <code class="rounded bg-slate-100 px-1">{MM}</code> bulan &middot;
+      <code class="rounded bg-slate-100 px-1">{ROMAN_MM}</code> bulan romawi &middot;
+      <code class="rounded bg-slate-100 px-1">{EID}</code> kode unik event.
+      Contoh: <code class="rounded bg-slate-100 px-1">{SEQ:3}/HMP-INF/{ROMAN_MM}/{YYYY}/{EID}</code>
+    </p>
+  </div>
+  <% if (!isEdit || event.permissions.edit) { %>
+    <div class="flex justify-end gap-2 border-t border-slate-100 pt-5">
+      <% if (!isEdit) { %><a href="/events" class="btn btn-outline">Batal</a><% } %>
+      <button type="submit" class="btn btn-primary"><%= isEdit ? 'Simpan Perubahan' : 'Buat Event' %></button>
+    </div>
+  <% } %>
+</form>
+
+<% if (!isEdit) { %><%- include('../../partials/app/end') %><% } %>

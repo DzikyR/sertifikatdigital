@@ -1,0 +1,67 @@
+<%
+  const actionTone = (a) => (a.includes('FAILED') ? 'bg-red-50 text-red-700 ring-red-300'
+    : a.includes('DELETE') || a.includes('REVOKE') || a.includes('REJECT') ? 'bg-amber-50 text-amber-800 ring-amber-300'
+    : a.startsWith('LOGIN') || a === 'LOGOUT' ? 'bg-slate-100 text-slate-700 ring-slate-300'
+    : 'bg-tsu-50 text-tsu-700 ring-tsu-200');
+  const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+  const qs = (page) => {
+    const p = new URLSearchParams();
+    if (filters.action) p.set('action', filters.action);
+    if (filters.from) p.set('from', toDateInput(filters.from));
+    if (filters.to) p.set('to', toDateInput(filters.to));
+    p.set('page', page);
+    return p.toString();
+  };
+%>
+<%- include('../../partials/app/start', { pageTitle: 'Log Sistem', pageSubtitle: 'Jejak audit aktivitas login, event, sertifikat, dan pengelolaan user.' }) %>
+
+<form method="get" class="card mb-4 flex flex-wrap items-end gap-3 p-4">
+  <div>
+    <label for="action" class="form-label">Aksi</label>
+    <select id="action" name="action" class="form-input">
+      <option value="">Semua aksi</option>
+      <% actions.forEach((a) => { %><option value="<%= a %>" <%= filters.action === a ? 'selected' : '' %>><%= a %></option><% }) %>
+    </select>
+  </div>
+  <div><label for="from" class="form-label">Dari</label><input id="from" type="date" name="from" value="<%= toDateInput(filters.from) %>" class="form-input"></div>
+  <div><label for="to" class="form-label">Sampai</label><input id="to" type="date" name="to" value="<%= toDateInput(filters.to) %>" class="form-input"></div>
+  <button class="btn btn-outline">Terapkan</button>
+  <% if (filters.action || filters.from || filters.to) { %><a href="/admin/logs" class="btn text-slate-500 hover:text-slate-800">Reset</a><% } %>
+  <p class="ml-auto text-sm text-slate-500"><%= fmtNumber(pagination.total) %> entri</p>
+</form>
+
+<div class="card overflow-hidden p-0">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <tr><th class="px-5 py-3">Waktu</th><th class="px-5 py-3">Aksi</th><th class="px-5 py-3">User</th><th class="px-5 py-3">Detail</th><th class="px-5 py-3">IP</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% items.forEach((l) => { %>
+          <tr class="align-top hover:bg-slate-50">
+            <td class="whitespace-nowrap px-5 py-2.5 text-slate-600"><%= fmtDateTime(l.createdAt) %></td>
+            <td class="px-5 py-2.5"><span class="badge whitespace-nowrap font-mono ring-1 <%= actionTone(l.action) %>"><%= l.action %></span></td>
+            <td class="px-5 py-2.5"><% if (l.user) { %><p class="font-medium text-slate-900"><%= l.user.name %></p><p class="text-xs text-slate-500"><%= l.user.email %></p><% } else { %><span class="text-slate-400">—</span><% } %></td>
+            <td class="max-w-md px-5 py-2.5 text-xs text-slate-600">
+              <% if (l.entity) { %><span class="font-semibold"><%= l.entity %></span><% if (l.entityId) { %> <span class="font-mono text-slate-400"><%= l.entityId %></span><% } %><br><% } %>
+              <% if (l.meta) { %><code class="break-all text-slate-500"><%= JSON.stringify(l.meta) %></code><% } %>
+            </td>
+            <td class="whitespace-nowrap px-5 py-2.5 font-mono text-xs text-slate-500" title="<%= l.userAgent || '' %>"><%= l.ip || '-' %></td>
+          </tr>
+        <% }) %>
+        <% if (!items.length) { %><tr><td colspan="5" class="px-5 py-8 text-center text-slate-500">Tidak ada log.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% if (pagination.totalPages > 1) { %>
+  <nav class="mt-4 flex items-center justify-between text-sm" aria-label="Paginasi">
+    <p class="text-slate-500">Halaman <%= pagination.page %> dari <%= pagination.totalPages %></p>
+    <div class="flex gap-2">
+      <% if (pagination.page > 1) { %><a class="btn btn-outline" href="?<%= qs(pagination.page - 1) %>">Sebelumnya</a><% } %>
+      <% if (pagination.page < pagination.totalPages) { %><a class="btn btn-outline" href="?<%= qs(pagination.page + 1) %>">Berikutnya</a><% } %>
+    </div>
+  </nav>
+<% } %>
+
+<%- include('../../partials/app/end') %>

@@ -1,0 +1,275 @@
+// Skema database SertifDigital Informatika TSU
+// Provider: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================================
+// ENUMS
+// =====================================================================
+
+enum Role {
+  SUPER_ADMIN // Kelola user & monitoring sistem
+  ADMIN // Kaprodi & Admin Prodi: approval draf HMP + event mandiri
+  HMP // Pengurus Himpunan Mahasiswa
+}
+
+// Status persetujuan akun. Akun buatan Super Admin langsung APPROVED;
+// login Google pertama dari domain kampus yang belum terdaftar -> PENDING.
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrganizerType {
+  PRODI
+  HMP
+}
+
+enum EventStatus {
+  DRAFT // Masih disusun (template, peserta, layout)
+  PENDING_APPROVAL // HMP sudah submit, menunggu Kaprodi
+  APPROVED // Disetujui, siap digenerate/blast
+  REJECTED // Ditolak Kaprodi (lihat reviewNote), bisa direvisi
+  PUBLISHED // Sertifikat sudah digenerate & diterbitkan
+}
+
+enum CertificateStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum EmailStatus {
+  PENDING
+  QUEUED
+  SENT
+  FAILED
+}
+
+// =====================================================================
+// MODELS
+// =====================================================================
+
+model User {
+  id             String         @id @default(cuid())
+  name           String         @db.VarChar(120)
+  email          String         @unique @db.VarChar(191)
+  passwordHash   String?        @db.VarChar(255) // null jika hanya login via Google
+  googleId       String?        @unique @db.VarChar(191)
+  avatarUrl      String?        @db.VarChar(500)
+  role           Role           @default(HMP)
+  isActive       Boolean        @default(true)
+  approvalStatus ApprovalStatus @default(APPROVED)
+  requestedAt    DateTime? // waktu permintaan akses via Google
+  reviewedAt     DateTime? // waktu disetujui / ditolak Super Admin
+  lastLoginAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  eventsCreated  Event[]      @relation("EventCreator")
+  eventsReviewed Event[]      @relation("EventReviewer")
+  auditLogs      AuditLog[]
+  fonts          CustomFont[]
+
+  @@index([role])
+  @@index([approvalStatus])
+}
+
+model Event {
+  id            String        @id @default(cuid())
+  title         String        @db.VarChar(200)
+  theme         String?       @db.VarChar(250) // tema kegiatan, mis. "Jejak Pertama: Langkah Kecil Menuju Kolaborasi Besar"
+  description   String?       @db.Text
+  location      String?       @db.VarChar(200)
+  eventDate     DateTime      @db.Date
+  organizerType OrganizerType
+  status        EventStatus   @default(DRAFT)
+
+  // Format nomor sertifikat. Token: {YYYY} {MM} {ROMAN_MM} {EID} {SEQ:n}
+  // Default "INF/{EID}/{YYYY}/{SEQ:4}" -> INF/K3X9Q/2026/0001 (EID = kode unik event)
+  certNumberFormat String @default("INF/{EID}/{YYYY}/{SEQ:4}") @db.VarChar(100)
+  certNumberSeq    Int    @default(0) // counter terakhir yang dipakai
+
+  // Template background (disimpan di storage/uploads/templates)
+  templatePath   String? @db.VarChar(255)
+  templateWidth  Int? // ukuran asli (px) - acuan semua koordinat
+  templateHeight Int?
+
+  // Layout builder (koordinat dalam px relatif terhadap ukuran asli template):
+  // {
+  //   fields: {
+  //     participantName:   { x, y, fontSize, fontFamily, fontWeight, color, align, maxWidth },
+  //     certificateNumber: { ... }, eventName: { ... }, eventDate: { ... }
+  //   },
+  //   qr: { x, y, size }
+  // }
+  layout Json?
+
+  // Workflow approval
+  createdById  String
+  createdBy    User      @relation("EventCreator", fields: [createdById], references: [id])
+  submittedAt  DateTime?
+  reviewedById String?
+  reviewedBy   User?     @relation("EventReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?   @db.Text
+  publishedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  signatures   EventSignature[]
+  logos        EventLogo[]
+  certificates Certificate[]
+
+  @@index([status])
+  @@index([organizerType])
+  @@index([createdById])
+}
+
+// Multi-TTD dinamis per event (TTD Kaprodi, Ketua HMP, Pembicara, dst.)
+model EventSignature {
+  id             String  @id @default(cuid())
+  eventId        String
+  event          Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  label          String  @db.VarChar(100) // "Kaprodi Informatika"
+  signerName     String? @db.VarChar(150) // nama di bawah TTD (opsional)
+  signerTitle    String? @db.VarChar(150) // jabatan / NIP (opsional)
+  imagePath      String  @db.VarChar(255) // PNG transparan di storage/uploads/signatures
+  showSignerText Boolean @default(true) // cetak signerName & signerTitle di bawah TTD
+
+  // Posisi & ukuran di atas canvas (px relatif ukuran asli template)
+  posX      Int @default(0)
+  posY      Int @default(0)
+  width     Int @default(200)
+  height    Int @default(100)
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+}
+
+// Logo di sertifikat (TSU, Prodi, HMP, sponsor, dst.) - bisa lebih dari satu per event
+model EventLogo {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  label     String   @db.VarChar(100) // "Logo TSU"
+  imagePath String   @db.VarChar(255) // PNG di storage/uploads/logos
+  posX      Int      @default(0)
+  posY      Int      @default(0)
+  width     Int      @default(200)
+  height    Int      @default(200)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+}
+
+model Certificate {
+  id                String  @id @default(cuid())
+  eventId           String
+  event             Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  certificateNumber String  @unique @db.VarChar(100)
+  participantName   String  @db.VarChar(150)
+  participantEmail  String  @db.VarChar(191)
+  participantRole   String  @default("Peserta") @db.VarChar(60) // Peserta / Pembicara / Panitia
+  institution       String? @db.VarChar(150)
+
+  // Anti-pemalsuan: kode acak publik (di URL QR) + HMAC atas data inti sertifikat
+  verificationCode String @unique @db.VarChar(64)
+  signatureHash    String @db.VarChar(128)
+
+  pdfPath  String?           @db.VarChar(255)
+  status   CertificateStatus @default(ACTIVE)
+  issuedAt DateTime?
+
+  emailStatus   EmailStatus @default(PENDING)
+  emailSentAt   DateTime?
+  emailError    String?     @db.Text
+  downloadCount Int         @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, participantEmail, participantRole]) // cegah peserta dobel di event yang sama
+  @@index([participantEmail])
+  @@index([eventId])
+}
+
+// Log aktivitas untuk monitoring Super Admin
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   @db.VarChar(80) // LOGIN, LOGIN_FAILED, EVENT_APPROVE, CERT_BLAST, ...
+  entity    String?  @db.VarChar(60) // User, Event, Certificate
+  entityId  String?  @db.VarChar(64)
+  meta      Json?
+  ip        String?  @db.VarChar(64)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Tabel session untuk connect-pg-simple (didefinisikan di sini agar
+// `prisma migrate` tidak menganggapnya sebagai drift)
+model Session {
+  sid    String   @id @db.VarChar
+  sess   Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
+  @@map("session")
+}
+
+// Pengaturan aktif/nonaktif fitur per role (dikelola Super Admin).
+// Hanya menyimpan nilai yang berbeda dari default di src/config/features.js.
+// role: 'ADMIN' | 'HMP' untuk fitur per role, 'GLOBAL' untuk fitur sistem.
+model FeatureSetting {
+  key         String   @db.VarChar(60)
+  role        String   @db.VarChar(20)
+  enabled     Boolean
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@id([key, role])
+  @@map("feature_settings")
+}
+
+// Font kustom yang diunggah pengguna (TTF/OTF/WOFF). Dipakai bersama oleh semua event;
+// di layout dirujuk sebagai "custom:<id>".
+model CustomFont {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(80) // nama tampilan, mis. "Brush Script Prodi"
+  filePath    String   @db.VarChar(255) // storage/uploads/fonts/<uuid>.<ext>
+  format      String   @db.VarChar(10) // ttf | otf | woff
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@map("custom_fonts")
+}
+
+// Pengaturan tampilan & identitas aplikasi (dikelola Super Admin). Hanya menyimpan nilai
+// yang berbeda dari default di src/services/brandingService.js.
+model AppSetting {
+  key         String   @id @db.VarChar(60)
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
+}

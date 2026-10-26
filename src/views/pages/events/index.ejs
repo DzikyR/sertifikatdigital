@@ -1,0 +1,89 @@
+<%
+  const qs = (overrides) => {
+    const p = new URLSearchParams();
+    const merged = { ...filters, ...overrides };
+    ['q', 'status', 'organizerType', 'page'].forEach((k) => { if (merged[k] && !(k === 'page' && merged[k] === 1)) p.set(k, merged[k]); });
+    const s = p.toString();
+    return s ? `?${s}` : '';
+  };
+%>
+<%- include('../../partials/app/start', { pageTitle: 'Event Sertifikat', pageSubtitle: user.role === 'HMP' ? 'Kegiatan HMP yang dikelola bersama pengurus.' : 'Seluruh kegiatan Prodi & HMP.',
+  actions: feature('event.create') ? '<a href="/events/new" class="btn btn-primary">+ Buat Event</a>' : '' }) %>
+
+<form method="get" class="card mb-4 flex flex-wrap items-end gap-3 p-4" role="search">
+  <div class="min-w-48 flex-1">
+    <label for="q" class="form-label">Cari</label>
+    <input id="q" name="q" value="<%= filters.q || '' %>" maxlength="120" class="form-input" placeholder="Nama kegiatan...">
+  </div>
+  <div>
+    <label for="status" class="form-label">Status</label>
+    <select id="status" name="status" class="form-input">
+      <option value="">Semua status</option>
+      <% Object.entries(EVENT_STATUS_META).forEach(([k, m]) => { %><option value="<%= k %>" <%= filters.status === k ? 'selected' : '' %>><%= m.label %></option><% }) %>
+    </select>
+  </div>
+  <% if (user.role === 'ADMIN') { %>
+  <div>
+    <label for="organizerType" class="form-label">Penyelenggara</label>
+    <select id="organizerType" name="organizerType" class="form-input">
+      <option value="">Prodi & HMP</option>
+      <option value="PRODI" <%= filters.organizerType === 'PRODI' ? 'selected' : '' %>>Prodi</option>
+      <option value="HMP" <%= filters.organizerType === 'HMP' ? 'selected' : '' %>>HMP</option>
+    </select>
+  </div>
+  <% } %>
+  <button class="btn btn-outline">Terapkan</button>
+  <% if (filters.q || filters.status || filters.organizerType) { %><a href="/events" class="btn text-slate-500 hover:text-slate-800">Reset</a><% } %>
+</form>
+
+<% if (!items.length) { %>
+  <div class="card flex flex-col items-center py-16 text-center">
+    <svg class="h-12 w-12 text-tsu-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+    <h2 class="mt-4 font-bold text-slate-900"><%= filters.q || filters.status ? 'Tidak ada event yang cocok' : 'Belum ada event' %></h2>
+    <p class="mt-1 text-sm text-slate-500">Buat event, unggah template, atur posisi teks, lalu import peserta.</p>
+    <% if (feature('event.create')) { %><a href="/events/new" class="btn btn-primary mt-5">+ Buat Event</a><% } %>
+  </div>
+<% } else { %>
+  <div class="card overflow-hidden p-0">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-5 py-3">Kegiatan</th>
+            <th class="px-5 py-3">Tanggal</th>
+            <th class="px-5 py-3">Penyelenggara</th>
+            <th class="px-5 py-3 text-right">Peserta</th>
+            <th class="px-5 py-3">Status</th>
+            <th class="px-5 py-3"><span class="sr-only">Aksi</span></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <% items.forEach((e) => { const meta = EVENT_STATUS_META[e.status]; %>
+            <tr class="hover:bg-slate-50">
+              <td class="px-5 py-3">
+                <a href="/events/<%= e.id %>" class="font-semibold text-slate-900 hover:text-tsu-700"><%= e.title %></a>
+                <p class="text-xs text-slate-500">oleh <%= e.createdBy.name %> &middot; diperbarui <%= fmtDateTime(e.updatedAt) %></p>
+              </td>
+              <td class="whitespace-nowrap px-5 py-3 text-slate-600"><%= fmtDate(e.eventDate) %></td>
+              <td class="px-5 py-3"><span class="badge <%= e.organizerType === 'PRODI' ? 'bg-tsu-50 text-tsu-700' : 'bg-gold-50 text-gold-700' %>"><%= ORGANIZER_LABELS[e.organizerType] %></span></td>
+              <td class="px-5 py-3 text-right tabular-nums"><%= fmtNumber(e._count.certificates) %></td>
+              <td class="px-5 py-3"><span class="badge whitespace-nowrap ring-1 <%= meta.cls %>"><%= meta.label %></span></td>
+              <td class="px-5 py-3 text-right"><a href="/events/<%= e.id %>" class="text-sm font-semibold text-tsu-700 hover:underline">Kelola</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <% if (pagination.totalPages > 1) { %>
+    <nav class="mt-4 flex items-center justify-between text-sm" aria-label="Paginasi">
+      <p class="text-slate-500">Halaman <%= pagination.page %> dari <%= pagination.totalPages %> (<%= pagination.total %> event)</p>
+      <div class="flex gap-2">
+        <% if (pagination.page > 1) { %><a href="/events<%= qs({ page: pagination.page - 1 }) %>" class="btn btn-outline">Sebelumnya</a><% } %>
+        <% if (pagination.page < pagination.totalPages) { %><a href="/events<%= qs({ page: pagination.page + 1 }) %>" class="btn btn-outline">Berikutnya</a><% } %>
+      </div>
+    </nav>
+  <% } %>
+<% } %>
+
+<%- include('../../partials/app/end') %>

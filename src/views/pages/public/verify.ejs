@@ -1,0 +1,77 @@
+<%- include('../../partials/head') %>
+<%- include('../../partials/navbar') %>
+<%
+  const c = result?.certificate;
+  const tone = !result ? null : result.valid ? 'valid' : result.reason === 'REVOKED' || result.reason === 'TAMPERED' ? 'danger' : 'warn';
+%>
+<main class="flex-1 px-4 py-12 sm:px-6">
+  <div class="mx-auto max-w-2xl">
+    <% if (!result) { %>
+      <div class="text-center">
+        <h1 class="text-3xl font-extrabold text-tsu-800">Verifikasi Keaslian Sertifikat</h1>
+        <p class="mt-2 text-slate-600">Pindai QR Code pada sertifikat dengan kamera ponsel, atau tempel kode / tautan verifikasi di bawah ini.</p>
+      </div>
+      <form method="get" action="/verify" class="card mt-8">
+        <label for="code" class="form-label">Kode atau tautan verifikasi</label>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <input id="code" name="code" required maxlength="300" class="form-input flex-1 font-mono" placeholder="https://.../verify/xxxxxxxx atau kode">
+          <button class="btn btn-primary">Verifikasi</button>
+        </div>
+      </form>
+    <% } else { %>
+      <!-- Hasil verifikasi -->
+      <div class="overflow-hidden rounded-2xl border bg-white shadow-lg <%= tone === 'valid' ? 'border-emerald-200' : tone === 'danger' ? 'border-red-200' : 'border-amber-200' %>">
+        <div class="flex items-center gap-4 p-6 <%= tone === 'valid' ? 'bg-emerald-50' : tone === 'danger' ? 'bg-red-50' : 'bg-amber-50' %>">
+          <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full <%= tone === 'valid' ? 'bg-emerald-600' : tone === 'danger' ? 'bg-red-600' : 'bg-amber-500' %> text-white" aria-hidden="true">
+            <% if (tone === 'valid') { %>
+              <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+            <% } else { %>
+              <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            <% } %>
+          </span>
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest <%= tone === 'valid' ? 'text-emerald-700' : tone === 'danger' ? 'text-red-700' : 'text-amber-800' %>">
+              <%= tone === 'valid' ? 'Terverifikasi' : 'Tidak Valid' %>
+            </p>
+            <h1 class="text-xl font-bold text-slate-900 sm:text-2xl"><%= result.message %></h1>
+          </div>
+        </div>
+
+        <% if (c) { %>
+          <dl class="divide-y divide-slate-100 px-6">
+            <% [
+              ['Nama', c.participantName],
+              ['Sebagai', c.participantRole],
+              ['Kegiatan', c.event.title],
+            ].concat(c.event.theme ? [['Tema', c.event.theme]] : []).concat([
+              ['Tanggal Kegiatan', c.event.dateText],
+              ['Penyelenggara', `${c.event.organizer}, ${brand.institutionName}`],
+              ['Nomor Sertifikat', c.certificateNumber],
+              ['Diterbitkan', c.issuedAtText],
+              ['Email', c.participantEmail],
+            ]).concat(c.institution ? [['Instansi', c.institution]] : []).forEach(([k, v]) => { %>
+              <div class="grid gap-1 py-3 sm:grid-cols-3">
+                <dt class="text-sm text-slate-500"><%= k %></dt>
+                <dd class="text-sm font-semibold text-slate-900 sm:col-span-2 <%= k === 'Nomor Sertifikat' ? 'font-mono' : '' %>"><%= v %></dd>
+              </div>
+            <% }) %>
+          </dl>
+          <% if (c.downloadUrl) { %>
+            <div class="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <a href="<%= c.downloadUrl %>" class="btn btn-primary">Unduh PDF Asli</a>
+              <p class="flex-1 self-center text-xs text-slate-500">Bandingkan isi sertifikat yang Anda terima dengan data di atas. Jika berbeda, sertifikat tersebut kemungkinan dipalsukan.</p>
+            </div>
+          <% } %>
+        <% } else { %>
+          <div class="p-6 text-sm text-slate-600">
+            <p>Pastikan QR Code dipindai dari sertifikat asli, atau periksa kembali kode yang dimasukkan.</p>
+            <a href="/verify" class="btn btn-outline mt-4">Coba kode lain</a>
+          </div>
+        <% } %>
+      </div>
+      <p class="mt-6 text-center text-xs text-slate-500">Verifikasi dilakukan langsung terhadap basis data resmi <%= brand.unitName %> <%= brand.institutionName %> dan dilindungi tanda tangan digital.</p>
+    <% } %>
+  </div>
+</main>
+
+<%- include('../../partials/footer') %>

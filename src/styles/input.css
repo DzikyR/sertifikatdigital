@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@source "../views";
+@source "../../public/js";
+
+/* ==== Design tokens: palet Universitas Tiga Serangkai (biru institusi + aksen emas) ==== */
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-tsu-50: #eef4fc;
+  --color-tsu-100: #d6e4f7;
+  --color-tsu-200: #adc8ef;
+  --color-tsu-300: #7aa5e2;
+  --color-tsu-400: #457bcf;
+  --color-tsu-500: #2259b5;
+  --color-tsu-600: #154594;
+  --color-tsu-700: #0f3878;
+  --color-tsu-800: #0c2c5e;
+  --color-tsu-900: #0a2149;
+  --color-tsu-950: #06142e;
+
+  --color-gold-50: #fffaeb;
+  --color-gold-100: #fef0c7;
+  --color-gold-200: #fde08a;
+  --color-gold-300: #fcca4d;
+  --color-gold-400: #fbb625;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97b06;
+  --color-gold-700: #b45909;
+}
+
+/* ==== Komponen reusable (pakai: class="btn btn-primary") ==== */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply bg-tsu-700 text-white hover:bg-tsu-800 focus-visible:ring-tsu-500;
+  }
+  .btn-accent {
+    @apply bg-gold-400 text-tsu-950 hover:bg-gold-300 focus-visible:ring-gold-500;
+  }
+  .btn-outline {
+    @apply border border-tsu-200 bg-white text-tsu-700 hover:bg-tsu-50 focus-visible:ring-tsu-500;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+  }
+  .form-label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .form-input {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400
+      focus:border-tsu-500 focus:ring-2 focus:ring-tsu-500/20 focus:outline-none;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+}

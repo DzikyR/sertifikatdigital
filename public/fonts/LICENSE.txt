@@ -1,0 +1,4 @@
+Font di folder ini (Great Vibes, Pinyon Script, Alex Brush, Dancing Script, Playfair Display,
+Cinzel, Lora, EB Garamond, Montserrat, Poppins) berasal dari Google Fonts melalui paket
+@fontsource dan dilisensikan di bawah SIL Open Font License 1.1 (https://openfontlicense.org).
+Font boleh dipakai, disematkan di PDF, dan didistribusikan ulang bersama aplikasi ini.

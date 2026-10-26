@@ -1,0 +1,10 @@
+<%#
+  Logo aplikasi (gambar unggahan Super Admin, atau teks logo bila belum ada).
+  Locals: size ('md' | 'lg'), tone ('accent' = kotak warna aksen, 'primary' = kotak warna utama)
+%>
+<% const sz = (typeof size !== 'undefined' && size === 'lg') ? 'h-11 w-11' : 'h-10 w-10'; %>
+<% if (brand.logoUrl) { %>
+  <img src="<%= brand.logoUrl %>" alt="Logo <%= brand.appName %>" class="<%= sz %> shrink-0 rounded-lg bg-white object-contain p-1 shadow-sm">
+<% } else { %>
+  <span class="flex <%= sz %> shrink-0 items-center justify-center rounded-lg font-extrabold <%= (typeof tone !== 'undefined' && tone === 'primary') ? 'bg-tsu-800 text-gold-400' : 'bg-gold-400 text-tsu-900' %> <%= brand.logoText.length > 3 ? 'text-xs' : '' %>"><%= brand.logoText %></span>
+<% } %>

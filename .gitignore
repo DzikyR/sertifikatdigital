@@ -1,0 +1,13 @@
+node_modules/
+.env
+public/css/style.css
+storage/uploads/**/*
+storage/certificates/**/*
+!storage/**/.gitkeep
+*.log
+.DS_Store
+
+# Catatan kredensial lokal (berisi password) - jangan pernah di-commit
+akun.txt
+.env.*
+!.env.example

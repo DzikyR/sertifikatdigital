@@ -1,0 +1,102 @@
+<%#
+  Kerangka halaman internal (sidebar + topbar).
+  Locals: title, scripts?, pageTitle?, breadcrumbs? [{label, href?}], actions? (HTML string)
+%>
+<%- include('../head') %>
+<%
+  const icons = {
+    home: 'M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25',
+    events: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5',
+    approval: 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z',
+    users: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z',
+    logs: 'M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z',
+    toggles: 'M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75',
+    brush: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42',
+    globe: 'M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418',
+  };
+  const nav = [{ href: '/dashboard', label: 'Dashboard', icon: 'home' }];
+  if (['ADMIN', 'HMP'].includes(user.role)) nav.push({ href: '/events', label: 'Event Sertifikat', icon: 'events' });
+  if (user.role === 'ADMIN' && feature('approval.review')) nav.push({ href: '/approvals', label: 'Persetujuan', icon: 'approval', badge: pendingApprovals });
+  if (user.role === 'SUPER_ADMIN') {
+    nav.push({ href: '/admin/users', label: 'Kelola User', icon: 'users', badge: pendingUsers });
+    nav.push({ href: '/admin/features', label: 'Fitur & Akses', icon: 'toggles' });
+    nav.push({ href: '/admin/settings', label: 'Pengaturan Aplikasi', icon: 'brush' });
+    nav.push({ href: '/admin/logs', label: 'Log Sistem', icon: 'logs' });
+  }
+  const isActive = (href) => currentPath === href || (href !== '/dashboard' && currentPath.startsWith(href + '/')) || (href !== '/dashboard' && currentPath === href);
+  const crumbs = typeof breadcrumbs !== 'undefined' ? breadcrumbs : [];
+%>
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside id="app-sidebar" class="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col bg-tsu-900 text-tsu-100 lg:flex">
+    <a href="/dashboard" class="flex items-center gap-3 border-b-4 border-gold-400 px-5 py-4">
+      <%- include('../brand-logo') %>
+      <span class="min-w-0 leading-tight">
+        <span class="block truncate text-sm font-bold text-white"><%= brand.appName %></span>
+        <% if (brand.appSubtitle) { %><span class="block truncate text-xs text-tsu-300"><%= brand.appSubtitle %></span><% } %>
+      </span>
+    </a>
+    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Navigasi utama">
+      <% nav.forEach((item) => { const active = isActive(item.href); %>
+        <a href="<%= item.href %>" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition <%= active ? 'bg-tsu-700 text-white shadow-inner' : 'text-tsu-200 hover:bg-tsu-800 hover:text-white' %>" <%= active ? 'aria-current=page' : '' %>>
+          <svg class="h-5 w-5 shrink-0 <%= active ? 'text-gold-400' : '' %>" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="<%= icons[item.icon] %>" /></svg>
+          <span class="flex-1"><%= item.label %></span>
+          <% if (item.badge) { %><span class="rounded-full bg-gold-400 px-2 py-0.5 text-xs font-bold text-tsu-950"><%= item.badge %></span><% } %>
+        </a>
+      <% }) %>
+      <div class="my-3 border-t border-tsu-800"></div>
+      <a href="/cari" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-tsu-200 hover:bg-tsu-800 hover:text-white">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="<%= icons.globe %>" /></svg>
+        Portal Publik
+      </a>
+    </nav>
+    <div class="border-t border-tsu-800 p-4">
+      <div class="flex items-center gap-3">
+        <% if (user.avatarUrl) { %>
+          <img src="<%= user.avatarUrl %>" alt="" class="h-9 w-9 rounded-full ring-2 ring-gold-400" referrerpolicy="no-referrer">
+        <% } else { %>
+          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-tsu-700 text-sm font-bold text-gold-300"><%= user.name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() %></span>
+        <% } %>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-semibold text-white"><%= user.name %></p>
+          <p class="truncate text-xs text-tsu-300"><%= roleLabels[user.role] %></p>
+        </div>
+      </div>
+      <form action="/auth/logout" method="post" class="mt-3">
+        <input type="hidden" name="_csrf" value="<%= csrfToken() %>">
+        <button type="submit" class="w-full rounded-lg border border-tsu-700 px-3 py-2 text-sm font-medium text-tsu-200 hover:bg-tsu-800 hover:text-white">Keluar</button>
+      </form>
+    </div>
+  </aside>
+  <div id="sidebar-backdrop" class="fixed inset-0 z-40 hidden bg-slate-900/50 lg:hidden" data-sidebar-close></div>
+
+  <!-- Konten -->
+  <div class="flex min-w-0 flex-1 flex-col lg:pl-64">
+    <header class="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+      <button type="button" class="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden" data-sidebar-open aria-label="Buka menu">
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+      <nav class="min-w-0 flex-1 text-sm" aria-label="Breadcrumb">
+        <ol class="flex items-center gap-1.5 truncate text-slate-500">
+          <% crumbs.forEach((c, i) => { %>
+            <% if (i) { %><li aria-hidden="true">/</li><% } %>
+            <li class="truncate <%= i === crumbs.length - 1 ? 'font-semibold text-slate-900' : '' %>">
+              <% if (c.href && i < crumbs.length - 1) { %><a href="<%= c.href %>" class="hover:text-tsu-700"><%= c.label %></a><% } else { %><%= c.label %><% } %>
+            </li>
+          <% }) %>
+        </ol>
+      </nav>
+      <span class="badge hidden bg-gold-100 text-gold-700 ring-1 ring-gold-300 sm:inline-flex"><%= roleLabels[user.role] %></span>
+    </header>
+
+    <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      <%- include('../flash') %>
+      <% if (typeof pageTitle !== 'undefined') { %>
+        <div class="mb-6 mt-2 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900"><%= pageTitle %></h1>
+            <% if (typeof pageSubtitle !== 'undefined') { %><p class="mt-1 text-sm text-slate-500"><%= pageSubtitle %></p><% } %>
+          </div>
+          <% if (typeof actions !== 'undefined') { %><div class="flex flex-wrap gap-2"><%- actions %></div><% } %>
+        </div>
+      <% } %>

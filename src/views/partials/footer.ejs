@@ -1,0 +1,38 @@
+<footer class="mt-auto bg-tsu-950 text-tsu-200">
+  <% if (brand.hasContact) { %>
+    <div class="mx-auto grid max-w-7xl gap-6 border-b border-tsu-800 px-4 py-8 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-3 lg:px-8">
+      <div class="flex items-start gap-3">
+        <%- include('./brand-logo') %>
+        <div>
+          <p class="font-bold text-white"><%= brand.appName %></p>
+          <p class="text-tsu-300"><%= brand.unitName %> &middot; <%= brand.institutionName %></p>
+          <% if (brand.tagline) { %><p class="mt-2 text-tsu-300"><%= brand.tagline %></p><% } %>
+        </div>
+      </div>
+      <div>
+        <p class="font-semibold text-white">Kontak</p>
+        <ul class="mt-2 space-y-1.5">
+          <% if (brand.contactAddress) { %><li class="whitespace-pre-line"><%= brand.contactAddress %></li><% } %>
+          <% if (brand.contactEmail) { %><li><a href="mailto:<%= brand.contactEmail %>" class="hover:text-gold-300"><%= brand.contactEmail %></a></li><% } %>
+          <% if (brand.contactPhone) { %><li><%= brand.contactPhone %></li><% } %>
+        </ul>
+      </div>
+      <% if (brand.contactWebsite || brand.socialInstagram || brand.socialYoutube) { %>
+        <div>
+          <p class="font-semibold text-white">Tautan</p>
+          <ul class="mt-2 space-y-1.5">
+            <% if (brand.contactWebsite) { %><li><a href="<%= brand.contactWebsite %>" target="_blank" rel="noopener" class="hover:text-gold-300">Situs web</a></li><% } %>
+            <% if (brand.socialInstagram) { %><li><a href="<%= brand.socialInstagram %>" target="_blank" rel="noopener" class="hover:text-gold-300">Instagram</a></li><% } %>
+            <% if (brand.socialYoutube) { %><li><a href="<%= brand.socialYoutube %>" target="_blank" rel="noopener" class="hover:text-gold-300">YouTube</a></li><% } %>
+          </ul>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
+  <div class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+    <p>&copy; <%= currentYear %> <%= brand.footerCopyright %></p>
+    <% if (brand.footerNote) { %><p class="text-tsu-300"><%= brand.footerNote %></p><% } %>
+  </div>
+</footer>
+</body>
+</html>

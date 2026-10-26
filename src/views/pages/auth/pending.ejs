@@ -1,0 +1,30 @@
+<%- include('../../partials/head') %>
+
+<main class="flex flex-1 items-center justify-center px-4 py-16">
+  <div class="w-full max-w-lg text-center">
+    <a href="/" class="inline-flex items-center gap-3">
+      <%- include('../../partials/brand-logo', { size: 'lg', tone: 'primary' }) %>
+      <span class="font-bold text-tsu-800"><%= brand.appName %></span>
+    </a>
+
+    <div class="card mt-8 p-8">
+      <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gold-100 text-gold-700" aria-hidden="true">
+        <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+      </span>
+      <h1 class="mt-4 text-xl font-bold text-slate-900">Permintaan akses terkirim</h1>
+      <p class="mt-2 text-sm leading-relaxed text-slate-600">
+        Akun Google Anda sudah tercatat dan sedang <strong>menunggu persetujuan Super Admin</strong>.
+        Super Admin akan menentukan peran Anda (Kaprodi/Admin Prodi atau Pengurus HMP).
+      </p>
+      <ol class="mt-6 space-y-3 rounded-xl bg-slate-50 p-4 text-left text-sm text-slate-600">
+        <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tsu-700 text-xs font-bold text-white">1</span>Hubungi Super Admin atau Kaprodi agar permintaan Anda segera diproses.</li>
+        <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tsu-700 text-xs font-bold text-white">2</span>Setelah disetujui, klik <strong>Masuk dengan Google</strong> kembali dengan akun yang sama.</li>
+      </ol>
+      <a href="/auth/login" class="btn btn-primary mt-6">Kembali ke Halaman Login</a>
+    </div>
+    <p class="mt-6 text-xs text-slate-500">Peserta kegiatan tidak perlu login. <a href="/cari" class="font-semibold text-tsu-700 hover:underline">Cari sertifikat di sini</a>.</p>
+  </div>
+</main>
+
+</body>
+</html>

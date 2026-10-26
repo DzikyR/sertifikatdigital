@@ -1,0 +1,138 @@
+<%- include('../../partials/app/start', { pageTitle: 'Kelola User', pageSubtitle: 'Hanya akun terdaftar yang bisa login (termasuk via Google).',
+  actions: '<button type="button" class="btn btn-primary" data-open-user-form>+ Tambah User</button>' }) %>
+
+<%
+  const roleOptions = (selected) => Object.entries(roles)
+    .map(([k, l]) => `<option value="${k}" ${k === selected ? 'selected' : ''}>${l}</option>`).join('');
+%>
+<!-- Permintaan akses (login Google pertama dari domain kampus) -->
+<section id="permintaan" class="mb-6" aria-labelledby="req-title">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <h2 id="req-title" class="font-bold text-slate-900">Permintaan Akses <span class="ml-1 rounded-full bg-gold-400 px-2 py-0.5 text-xs font-bold text-tsu-950"><%= requests.pending.length %></span></h2>
+    <p class="text-xs text-slate-500">Muncul saat akun Google kampus yang belum terdaftar mencoba login.</p>
+  </div>
+  <% if (!requests.pending.length) { %>
+    <div class="card p-4 text-sm text-slate-500">Tidak ada permintaan akses yang menunggu.</div>
+  <% } else { %>
+    <ul class="space-y-3">
+      <% requests.pending.forEach((r) => { %>
+        <li class="card flex flex-wrap items-center gap-4 border-l-4 border-l-gold-400 p-4">
+          <% if (r.avatarUrl) { %><img src="<%= r.avatarUrl %>" alt="" class="h-10 w-10 rounded-full" referrerpolicy="no-referrer"><% } else { %><span class="flex h-10 w-10 items-center justify-center rounded-full bg-tsu-100 font-bold text-tsu-700"><%= r.name.charAt(0).toUpperCase() %></span><% } %>
+          <div class="min-w-0 flex-1">
+            <p class="font-semibold text-slate-900"><%= r.name %></p>
+            <p class="text-xs text-slate-500"><%= r.email %> &middot; mengajukan <%= fmtDateTime(r.requestedAt) %></p>
+          </div>
+          <form class="flex flex-wrap items-center gap-2" data-approve-form data-url="/api/admin/access-requests/<%= r.id %>/approve">
+            <label class="sr-only" for="role-<%= r.id %>">Role untuk <%= r.name %></label>
+            <select id="role-<%= r.id %>" name="role" required class="form-input w-auto py-2">
+              <option value="" selected disabled>Pilih role...</option>
+              <%- roleOptions(null) %>
+            </select>
+            <button class="btn btn-primary">Setujui</button>
+            <button type="button" class="btn text-red-600 hover:bg-red-50" data-action="POST /api/admin/access-requests/<%= r.id %>/reject" data-confirm="Tolak permintaan akses <%= r.email %>? User tidak akan bisa masuk." data-danger data-ok-label="Tolak">Tolak</button>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <% if (requests.rejected.length) { %>
+    <details class="mt-3 text-sm">
+      <summary class="cursor-pointer font-semibold text-slate-600 hover:text-slate-900">Permintaan ditolak (<%= requests.rejected.length %>)</summary>
+      <ul class="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+        <% requests.rejected.forEach((r) => { %>
+          <li class="flex flex-wrap items-center gap-3 px-4 py-3">
+            <div class="min-w-0 flex-1"><p class="font-medium text-slate-700"><%= r.name %></p><p class="text-xs text-slate-500"><%= r.email %> &middot; ditolak <%= fmtDateTime(r.reviewedAt) %></p></div>
+            <form class="flex flex-wrap items-center gap-2" data-approve-form data-url="/api/admin/access-requests/<%= r.id %>/approve">
+              <label class="sr-only" for="role-<%= r.id %>">Role untuk <%= r.name %></label>
+              <select id="role-<%= r.id %>" name="role" required class="form-input w-auto py-1.5 text-xs">
+                <option value="" selected disabled>Pilih role...</option>
+                <%- roleOptions(null) %>
+              </select>
+              <button class="btn btn-outline py-1.5 text-xs">Setujui ulang</button>
+              <button type="button" class="btn py-1.5 text-xs text-red-600 hover:bg-red-50" data-action="DELETE /api/admin/access-requests/<%= r.id %>" data-confirm="Hapus catatan permintaan <%= r.email %>? Email ini akan bisa mengajukan akses lagi." data-danger data-ok-label="Hapus">Hapus</button>
+            </form>
+          </li>
+        <% }) %>
+      </ul>
+    </details>
+  <% } %>
+</section>
+
+<h2 class="mb-3 font-bold text-slate-900">User Terdaftar</h2>
+<form method="get" class="card mb-4 flex flex-wrap items-end gap-3 p-4" role="search">
+  <div class="min-w-48 flex-1"><label for="q" class="form-label">Cari</label><input id="q" name="q" value="<%= filters.q || '' %>" maxlength="120" class="form-input" placeholder="Nama atau email..."></div>
+  <div>
+    <label for="role" class="form-label">Role</label>
+    <select id="role" name="role" class="form-input">
+      <option value="">Semua role</option>
+      <% Object.entries(roles).forEach(([k, l]) => { %><option value="<%= k %>" <%= filters.role === k ? 'selected' : '' %>><%= l %></option><% }) %>
+    </select>
+  </div>
+  <button class="btn btn-outline">Terapkan</button>
+</form>
+
+<div class="card overflow-hidden p-0">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <tr><th class="px-5 py-3">User</th><th class="px-5 py-3">Role</th><th class="px-5 py-3">Metode Login</th><th class="px-5 py-3">Login Terakhir</th><th class="px-5 py-3">Status</th><th class="px-5 py-3"><span class="sr-only">Aksi</span></th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% items.forEach((u) => { const self = u.id === user.id; %>
+          <tr class="<%= u.isActive ? 'hover:bg-slate-50' : 'bg-slate-50 text-slate-400' %>">
+            <td class="px-5 py-3"><p class="font-semibold <%= u.isActive ? 'text-slate-900' : '' %>"><%= u.name %><%= self ? ' (Anda)' : '' %></p><p class="text-xs text-slate-500"><%= u.email %></p></td>
+            <td class="px-5 py-3"><span class="badge bg-tsu-50 text-tsu-700"><%= roles[u.role] %></span></td>
+            <td class="px-5 py-3 text-xs text-slate-600"><%= [u.hasPassword && 'Password', u.googleLinked && 'Google (tertaut)', !u.hasPassword && !u.googleLinked && 'Google'].filter(Boolean).join(' · ') %></td>
+            <td class="whitespace-nowrap px-5 py-3 text-slate-600"><%= u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'Belum pernah' %></td>
+            <td class="px-5 py-3"><span class="badge ring-1 <%= u.isActive ? 'bg-emerald-50 text-emerald-800 ring-emerald-300' : 'bg-slate-100 text-slate-600 ring-slate-300' %>"><%= u.isActive ? 'Aktif' : 'Nonaktif' %></span></td>
+            <td class="whitespace-nowrap px-5 py-3 text-right">
+              <button type="button" class="text-xs font-semibold text-tsu-700 hover:underline" data-edit-user="<%= JSON.stringify({ id: u.id, name: u.name, email: u.email, role: u.role }) %>">Ubah</button>
+              <button type="button" class="ml-3 text-xs font-semibold text-tsu-700 hover:underline" data-action="POST /api/admin/users/<%= u.id %>/reset-password" data-prompt="Password baru (min. 10 karakter, huruf & angka)" data-prompt-field="password" data-prompt-required data-confirm-title="Reset password <%= u.name %>" data-confirm="Semua sesi aktif user ini akan dikeluarkan." data-ok-label="Reset">Reset Password</button>
+              <% if (!self) { %>
+                <button type="button" class="ml-3 text-xs font-semibold <%= u.isActive ? 'text-red-600' : 'text-emerald-700' %> hover:underline"
+                  data-action="PATCH /api/admin/users/<%= u.id %>" data-body='<%= JSON.stringify({ isActive: !u.isActive }) %>'
+                  data-confirm="<%= u.isActive ? `Nonaktifkan ${u.name}? User akan langsung keluar dari semua sesi.` : `Aktifkan kembali ${u.name}?` %>" <%= u.isActive ? 'data-danger' : '' %> data-ok-label="<%= u.isActive ? 'Nonaktifkan' : 'Aktifkan' %>"><%= u.isActive ? 'Nonaktifkan' : 'Aktifkan' %></button>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+        <% if (!items.length) { %><tr><td colspan="6" class="px-5 py-8 text-center text-slate-500">Tidak ada user yang cocok.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% if (pagination.totalPages > 1) { %>
+  <nav class="mt-4 flex justify-end gap-2 text-sm" aria-label="Paginasi">
+    <% if (pagination.page > 1) { %><a class="btn btn-outline" href="?<%= new URLSearchParams({ ...(filters.q && { q: filters.q }), ...(filters.role && { role: filters.role }), page: pagination.page - 1 }) %>">Sebelumnya</a><% } %>
+    <% if (pagination.page < pagination.totalPages) { %><a class="btn btn-outline" href="?<%= new URLSearchParams({ ...(filters.q && { q: filters.q }), ...(filters.role && { role: filters.role }), page: pagination.page + 1 }) %>">Berikutnya</a><% } %>
+  </nav>
+<% } %>
+
+<dialog id="user-dialog" class="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+  <form class="space-y-4 p-6" data-user-form>
+    <h2 class="text-lg font-bold text-slate-900" data-user-form-title>Tambah User</h2>
+    <div><label class="form-label" for="u-name">Nama <span class="text-red-600">*</span></label><input id="u-name" name="name" required maxlength="120" class="form-input"></div>
+    <div><label class="form-label" for="u-email">Email <span class="text-red-600">*</span></label><input id="u-email" name="email" type="email" required maxlength="191" class="form-input" placeholder="nama@tsu.ac.id"></div>
+    <div>
+      <label class="form-label" for="u-role">Role <span class="text-red-600">*</span></label>
+      <select id="u-role" name="role" required class="form-input">
+        <% Object.entries(roles).forEach(([k, l]) => { %><option value="<%= k %>" <%= k === 'HMP' ? 'selected' : '' %>><%= l %></option><% }) %>
+      </select>
+    </div>
+    <div data-password-wrap>
+      <label class="form-label" for="u-password">Password</label>
+      <div class="relative">
+        <input id="u-password" name="password" type="password" minlength="10" maxlength="128" autocomplete="new-password" class="form-input pr-11">
+        <%- include('../../partials/password-toggle') %>
+      </div>
+      <p class="mt-1 text-xs text-slate-500">Kosongkan jika user hanya login dengan Google. Min. 10 karakter, mengandung huruf & angka.</p>
+    </div>
+    <div class="flex justify-end gap-2 pt-2">
+      <button type="button" class="btn btn-outline" data-close-user-form>Batal</button>
+      <button type="submit" class="btn btn-primary">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<%- include('../../partials/app/end') %>

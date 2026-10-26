@@ -1,0 +1,49 @@
+<%- include('../partials/head') %>
+<%- include('../partials/navbar') %>
+
+<main class="flex-1">
+  <!-- Hero -->
+  <section class="relative overflow-hidden bg-gradient-to-br from-tsu-800 via-tsu-700 to-tsu-900 text-white">
+    <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gold-400/20 blur-3xl"></div>
+    <div class="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
+      <div>
+        <% if (brand.heroBadge) { %><span class="badge bg-gold-400/20 text-gold-300 ring-1 ring-gold-400/40"><%= brand.heroBadge %></span><% } %>
+        <h1 class="mt-4 text-3xl font-extrabold leading-tight sm:text-4xl lg:text-5xl">
+          <%= brand.heroTitle %><% if (brand.heroHighlight) { %> <span class="text-gold-400"><%= brand.heroHighlight %></span><% } %>
+        </h1>
+        <% if (brand.heroDescription) { %><p class="mt-4 max-w-xl whitespace-pre-line text-tsu-100"><%= brand.heroDescription %></p><% } %>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <% if (feature('public.search')) { %><a href="/cari" class="btn btn-accent">Cari Sertifikat Saya</a><% } %>
+          <a href="/verify" class="btn border border-white/30 text-white hover:bg-white/10">Verifikasi Sertifikat</a>
+        </div>
+      </div>
+
+      <% if (feature('public.search')) { %>
+      <!-- Form cepat pencarian -->
+      <div class="rounded-2xl bg-white p-6 text-slate-800 shadow-xl lg:self-center">
+        <h2 class="text-lg font-bold text-tsu-800">Cari Sertifikat</h2>
+        <p class="mt-1 text-sm text-slate-500">Masukkan email terdaftar atau nomor sertifikat.</p>
+        <form action="/cari" method="get" class="mt-4 space-y-3">
+          <label for="q" class="form-label">Email / Nomor Sertifikat</label>
+          <input id="q" name="q" type="text" class="form-input" placeholder="contoh: nama@email.com atau INF/2026/0001" required maxlength="120">
+          <button type="submit" class="btn btn-primary w-full">Cari</button>
+        </form>
+      </div>
+      <% } %>
+    </div>
+  </section>
+
+  <!-- Fitur -->
+  <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="grid gap-6 md:grid-cols-3">
+      <% [1, 2, 3].map((i) => ({ t: brand[`feature${i}Title`], d: brand[`feature${i}Desc`] })).filter((f) => f.t).forEach((f) => { %>
+        <div class="card border-t-4 border-t-gold-400">
+          <h3 class="font-bold text-tsu-800"><%= f.t %></h3>
+          <p class="mt-2 text-sm text-slate-600"><%= f.d %></p>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+</main>
+
+<%- include('../partials/footer') %>

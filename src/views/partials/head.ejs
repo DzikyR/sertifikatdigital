@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' | ' : '' %><%= brand.fullName %></title>
+  <meta name="description" content="<%= brand.metaDescription %>">
+  <meta name="theme-color" content="<%= brand.primaryColor %>">
+  <% if (user) { %><meta name="csrf-token" content="<%= csrfToken() %>"><% } %>
+  <link rel="icon" href="<%= brand.faviconUrl %>"<%- brand.logoUrl ? '' : ' type="image/svg+xml"' %>>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+  <% if (brand.hasCustomColors) { %><link rel="stylesheet" href="<%= brand.themeUrl %>"><% } %>
+  <script src="/js/main.js" defer></script>
+  <% (typeof scripts !== 'undefined' ? scripts : []).forEach((src) => { %>
+  <script src="<%= src %>" defer></script>
+  <% }) %>
+</head>
+<body class="flex min-h-full flex-col bg-slate-50 font-sans text-slate-800 antialiased">
