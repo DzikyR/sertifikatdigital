@@ -4,7 +4,7 @@ const validate = require('../../middlewares/validate');
 const { loadEvent, requireEventPermission: can } = require('../../middlewares/eventAccess');
 const { requireRole } = require('../../middlewares/auth');
 const { requireFeature } = require('../../middlewares/feature');
-const { templateUpload, signatureUpload, logoUpload, csvUpload } = require('../../config/upload');
+const { templateUpload, logoUpload, csvUpload } = require('../../config/upload');
 const event = require('../../controllers/api/eventController');
 const builder = require('../../controllers/api/builderController');
 const participant = require('../../controllers/api/participantController');
@@ -37,10 +37,10 @@ one.get('/builder', builder.getBuilder);
 one.put('/layout', can('editLayout'), builder.saveLayout);
 one.get('/preview', event.preview);
 
-// Multi-TTD
 one.get('/signatures', builder.listSignatures);
-one.post('/signatures', can('editTemplate'), signatureUpload.single('image'), v.signatureFields(false), validate, builder.createSignature);
-one.patch('/signatures/:signatureId', can('editTemplate'), signatureUpload.single('image'), v.signatureFields(true), validate, builder.updateSignature);
+// Multi-TTD: dipilih dari pustaka (unggah TTD hanya oleh Kaprodi/Admin Prodi di menu Tanda Tangan)
+one.post('/signatures', can('editTemplate'), v.useSignature, validate, builder.createSignature);
+one.patch('/signatures/:signatureId', can('editTemplate'), v.signatureToggle, validate, builder.updateSignature);
 one.delete('/signatures/:signatureId', can('editTemplate'), builder.deleteSignature);
 one.get('/signatures/:signatureId/image', builder.signatureImage);
 

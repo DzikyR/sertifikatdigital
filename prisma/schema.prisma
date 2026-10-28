@@ -73,10 +73,11 @@ model User {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  eventsCreated  Event[]      @relation("EventCreator")
-  eventsReviewed Event[]      @relation("EventReviewer")
+  eventsCreated  Event[]            @relation("EventCreator")
+  eventsReviewed Event[]            @relation("EventReviewer")
   auditLogs      AuditLog[]
   fonts          CustomFont[]
+  signatures     SignatureLibrary[]
 
   @@index([role])
   @@index([approvalStatus])
@@ -134,16 +135,39 @@ model Event {
   @@index([createdById])
 }
 
-// Multi-TTD dinamis per event (TTD Kaprodi, Ketua HMP, Pembicara, dst.)
+// Pustaka tanda tangan resmi: hanya Kaprodi/Admin Prodi yang mengunggah & mengelola.
+// Penyelenggara event (termasuk HMP) hanya memilih TTD dari pustaka, tidak bisa mengunggah sendiri.
+model SignatureLibrary {
+  id          String  @id @default(cuid())
+  label       String  @db.VarChar(100) // "Kaprodi Informatika"
+  signerName  String? @db.VarChar(150)
+  signerTitle String? @db.VarChar(150)
+  imagePath   String  @db.VarChar(255) // PNG transparan di storage/uploads/signatures
+  isActive    Boolean @default(true) // nonaktif = tidak bisa dipilih & event yang memakainya tidak bisa diajukan/terbit
+  hmpAllowed  Boolean @default(true) // boleh dipilih pengurus HMP
+
+  createdById String?
+  createdBy   User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  usages      EventSignature[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("signature_library")
+}
+
+// Multi-TTD dinamis per event (TTD Kaprodi, Ketua HMP, Pembicara, dst.), dipilih dari pustaka
 model EventSignature {
-  id             String  @id @default(cuid())
-  eventId        String
-  event          Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  label          String  @db.VarChar(100) // "Kaprodi Informatika"
-  signerName     String? @db.VarChar(150) // nama di bawah TTD (opsional)
-  signerTitle    String? @db.VarChar(150) // jabatan / NIP (opsional)
-  imagePath      String  @db.VarChar(255) // PNG transparan di storage/uploads/signatures
-  showSignerText Boolean @default(true) // cetak signerName & signerTitle di bawah TTD
+  id                 String            @id @default(cuid())
+  eventId            String
+  event              Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  librarySignatureId String?
+  library            SignatureLibrary? @relation(fields: [librarySignatureId], references: [id], onDelete: SetNull)
+  label              String            @db.VarChar(100) // "Kaprodi Informatika"
+  signerName         String?           @db.VarChar(150) // nama di bawah TTD (opsional)
+  signerTitle        String?           @db.VarChar(150) // jabatan / NIP (opsional)
+  imagePath          String            @db.VarChar(255) // PNG transparan di storage/uploads/signatures
+  showSignerText     Boolean           @default(true) // cetak signerName & signerTitle di bawah TTD
 
   // Posisi & ukuran di atas canvas (px relatif ukuran asli template)
   posX      Int @default(0)
@@ -156,6 +180,7 @@ model EventSignature {
   updatedAt DateTime @updatedAt
 
   @@index([eventId])
+  @@index([librarySignatureId])
 }
 
 // Logo di sertifikat (TSU, Prodi, HMP, sponsor, dst.) - bisa lebih dari satu per event

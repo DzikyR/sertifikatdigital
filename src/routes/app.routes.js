@@ -17,6 +17,7 @@ router.get('/events/new', ADMIN_HMP, requireFeature('event.create'), page.eventN
 router.get('/events/:eventId', ADMIN_HMP, v.id('eventId'), v.listParticipants, validate, loadEvent, page.eventShow);
 router.get('/events/:eventId/builder', ADMIN_HMP, v.id('eventId'), validate, loadEvent, page.eventBuilder);
 
+router.get('/signatures', requireRole('ADMIN'), page.signatures);
 router.get('/approvals', requireRole('ADMIN'), requireFeature('approval.review'), page.approvals);
 
 router.get('/admin/users', isSuperAdmin, v.listUsers, validate, page.users);

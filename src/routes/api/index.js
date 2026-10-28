@@ -10,6 +10,7 @@ const dashboardController = require('../../controllers/api/dashboardController')
 const eventRoutes = require('./events.routes');
 const adminRoutes = require('./admin.routes');
 const fontRoutes = require('./fonts.routes');
+const signatureRoutes = require('./signatures.routes');
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.get('/csrf-token', (req, res) => res.json({ csrfToken: generateToken(req)
 router.get('/dashboard/stats', dashboardController.stats);
 router.use('/events', requireRole('ADMIN', 'HMP'), eventRoutes);
 router.use('/fonts', requireRole('ADMIN', 'HMP'), fontRoutes);
+router.use('/signatures', requireRole('ADMIN', 'HMP'), signatureRoutes);
 router.use('/admin', isSuperAdmin, adminRoutes);
 
 module.exports = router;

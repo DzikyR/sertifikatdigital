@@ -5,6 +5,7 @@ const storage = require('../utils/storage');
 const { ROLES, EVENT_STATUS: S } = require('../utils/constants');
 const { defaultLayout } = require('./layoutService');
 const { permissionsFor } = require('./eventPolicy');
+const signatureService = require('./signatureService');
 
 const MAX_TEMPLATE_SIDE = 4000; // px; template lebih besar diperkecil agar PDF tetap ringan
 const MIN_TEMPLATE_SIDE = 600;
@@ -107,9 +108,14 @@ async function remove(event) {
     prisma.eventLogo.findMany({ where: { eventId: event.id }, select: { imagePath: true } }),
   ]);
   await prisma.event.delete({ where: { id: event.id } }); // cascade: signatures, logos & certificates
+  // Gambar TTD milik pustaka (dipakai bersama) tidak ikut dihapus
+  const libraryImages = new Set((await prisma.signatureLibrary.findMany({
+    where: { imagePath: { in: signatures.map((s) => s.imagePath) } }, select: { imagePath: true },
+  })).map((l) => l.imagePath));
+  const orphanSignatures = signatures.filter((s) => !libraryImages.has(s.imagePath));
   await Promise.all([
     storage.removeFile(event.templatePath),
-    ...[...signatures, ...logos].map((s) => storage.removeFile(s.imagePath)),
+    ...[...orphanSignatures, ...logos].map((s) => storage.removeFile(s.imagePath)),
     storage.removeDir(`certificates/${event.id}`),
   ]);
 }
@@ -168,6 +174,11 @@ async function readiness(event) {
   if (!event.layout?.fields?.participantName) problems.push('Posisi Nama Peserta belum diatur di builder.');
   const participants = await prisma.certificate.count({ where: { eventId: event.id } });
   if (participants === 0) problems.push('Belum ada peserta. Import CSV peserta terlebih dahulu.');
+  const sigs = await prisma.eventSignature.findMany({ where: { eventId: event.id }, include: { library: true } });
+  for (const s of sigs) {
+    const problem = signatureService.libraryProblem(s.library, event);
+    if (problem) problems.push(`Tanda tangan "${s.label}" ${problem}; lepas dari event ini atau hubungi Kaprodi/Admin Prodi.`);
+  }
   return { ready: problems.length === 0, problems };
 }
 

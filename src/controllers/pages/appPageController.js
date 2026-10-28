@@ -4,6 +4,7 @@ const eventService = require('../../services/eventService');
 const participantService = require('../../services/participantService');
 const adminService = require('../../services/adminService');
 const featureService = require('../../services/featureService');
+const signatureService = require('../../services/signatureService');
 const { FIELD_KEYS } = require('../../services/layoutService');
 const { ROLE_LABELS } = require('../../utils/constants');
 
@@ -44,11 +45,19 @@ exports.eventShow = async (req, res) => {
     eventService.getDetail(req.user, req.event.id),
     participantService.list(req.event, { page: 1, pageSize: 100, ...req.validated }),
   ]);
+  // TTD pustaka yang bisa dipilih penyelenggara (aktif & diizinkan untuk jenis event ini)
+  const used = new Set(event.signatures.map((s) => s.librarySignatureId));
+  const signatureLibrary = event.permissions.editTemplate
+    ? (await signatureService.listLibrary(req.user))
+      .filter((l) => !signatureService.libraryProblem(l, event) && !used.has(l.id))
+      .map(({ imagePath, ...l }) => ({ ...l, imageUrl: `/api/signatures/${l.id}/image` }))
+    : [];
   res.render('pages/events/show', {
     title: event.title,
     breadcrumbs: [{ label: 'Event Sertifikat', href: '/events' }, { label: event.title }],
     event,
     participants,
+    signatureLibrary,
     query: req.validated,
     scripts: ['/js/pages/event-show.js'],
   });
@@ -69,6 +78,24 @@ exports.eventBuilder = (req, res) => {
 };
 
 // ---------------- Persetujuan (Kaprodi/Admin Prodi) ----------------
+exports.signatures = async (req, res) => {
+  const items = await signatureService.listLibrary(req.user);
+  const usage = await prisma.eventSignature.findMany({
+    where: { librarySignatureId: { in: items.map((l) => l.id) } },
+    select: { librarySignatureId: true, event: { select: { id: true, title: true, status: true, organizerType: true } } },
+  });
+  res.render('pages/signatures/index', {
+    title: 'Tanda Tangan',
+    breadcrumbs: [{ label: 'Tanda Tangan' }],
+    items: items.map(({ imagePath, ...l }) => ({
+      ...l,
+      imageUrl: `/api/signatures/${l.id}/image`,
+      events: usage.filter((u) => u.librarySignatureId === l.id).map((u) => u.event),
+    })),
+    scripts: ['/js/pages/signatures.js'],
+  });
+};
+
 exports.approvals = async (req, res) => {
   const select = {
     id: true, title: true, eventDate: true, status: true, submittedAt: true, reviewedAt: true, reviewNote: true,

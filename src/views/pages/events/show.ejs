@@ -127,7 +127,7 @@
     <div class="space-y-6 lg:col-span-2">
     <div class="card">
       <h2 class="font-bold text-slate-900">Tanda Tangan (<%= event.signatures.length %>)</h2>
-      <p class="mt-1 text-sm text-slate-500">Unggah PNG transparan per penandatangan, lalu atur posisinya di Builder.</p>
+      <p class="mt-1 text-sm text-slate-500">Pilih tanda tangan resmi dari pustaka, lalu atur posisinya di Builder. Gambar tanda tangan hanya dapat diunggah dan dikelola Kaprodi/Admin Prodi<% if (user.role === 'ADMIN') { %> di menu <a href="/signatures" class="font-semibold text-tsu-700 hover:underline">Tanda Tangan</a><% } %>.</p>
       <ul class="mt-4 space-y-3">
         <% if (!event.signatures.length) { %><li class="rounded-lg border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">Belum ada tanda tangan.</li><% } %>
         <% event.signatures.forEach((s) => { %>
@@ -136,29 +136,45 @@
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-semibold text-slate-900"><%= s.label %></p>
               <p class="truncate text-xs text-slate-500"><%= [s.signerName, s.signerTitle].filter(Boolean).join(' · ') || 'Tanpa keterangan nama' %></p>
+              <% if (p.editTemplate && (s.signerName || s.signerTitle)) { %>
+                <button type="button" class="mt-0.5 text-xs font-semibold text-tsu-700 hover:underline" data-action="PATCH <%= base %>/signatures/<%= s.id %>" data-body='<%= json({ showSignerText: !s.showSignerText }) %>' data-success="Pengaturan teks tanda tangan disimpan."><%= s.showSignerText ? 'Nama & jabatan dicetak · sembunyikan' : 'Nama & jabatan tidak dicetak · tampilkan' %></button>
+              <% } %>
             </div>
             <% if (p.editTemplate) { %>
-              <button class="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" data-action="DELETE <%= base %>/signatures/<%= s.id %>" data-confirm="Hapus tanda tangan &quot;<%= s.label %>&quot;?" data-danger data-ok-label="Hapus" aria-label="Hapus TTD <%= s.label %>">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+              <button class="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" data-action="DELETE <%= base %>/signatures/<%= s.id %>" data-confirm="Lepas tanda tangan &quot;<%= s.label %>&quot; dari event ini? Tanda tangan tetap tersimpan di pustaka." data-danger data-ok-label="Lepas" aria-label="Lepas TTD <%= s.label %>">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
               </button>
             <% } %>
           </li>
         <% }) %>
       </ul>
       <% if (p.editTemplate) { %>
-        <form class="mt-4 space-y-3 border-t border-slate-100 pt-4" data-upload-form data-url="<%= base %>/signatures" data-field="image">
-          <div>
-            <label class="form-label" for="sig-label">Label <span class="text-red-600">*</span></label>
-            <input id="sig-label" name="label" required maxlength="100" class="form-input" placeholder="mis. Kaprodi / Ketua HMP / Pembicara">
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div><label class="form-label" for="sig-name">Nama penandatangan</label><input id="sig-name" name="signerName" maxlength="150" class="form-input" placeholder="Dr. Nama, M.Kom."></div>
-            <div><label class="form-label" for="sig-title">Jabatan / NIP</label><input id="sig-title" name="signerTitle" maxlength="150" class="form-input" placeholder="Ketua Program Studi"></div>
-          </div>
-          <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="showSignerText" checked class="rounded border-slate-300 text-tsu-600"> Cetak nama & jabatan di bawah TTD</label>
-          <input type="file" name="image" accept="image/png" required class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-tsu-50 file:px-3 file:py-2 file:font-semibold file:text-tsu-700 hover:file:bg-tsu-100">
-          <button class="btn btn-outline w-full">+ Tambah Tanda Tangan</button>
-        </form>
+        <% if (signatureLibrary.length) { %>
+          <form class="mt-4 space-y-3 border-t border-slate-100 pt-4" data-api-form data-method="POST" action="<%= base %>/signatures">
+            <fieldset>
+              <legend class="form-label">Pilih dari pustaka</legend>
+              <div class="mt-1 max-h-72 space-y-2 overflow-y-auto">
+                <% signatureLibrary.forEach((l, i) => { %>
+                  <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-2 has-[:checked]:border-tsu-500 has-[:checked]:bg-tsu-50">
+                    <input type="radio" name="librarySignatureId" value="<%= l.id %>" required class="border-slate-300 text-tsu-600" <%= i === 0 ? 'checked' : '' %>>
+                    <img src="<%= l.imageUrl %>" alt="" class="h-10 w-16 rounded bg-white object-contain" loading="lazy">
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-semibold text-slate-900"><%= l.label %></span>
+                      <span class="block truncate text-xs text-slate-500"><%= [l.signerName, l.signerTitle].filter(Boolean).join(' · ') || 'Tanpa keterangan nama' %></span>
+                    </span>
+                  </label>
+                <% }) %>
+              </div>
+            </fieldset>
+            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="showSignerText" checked class="rounded border-slate-300 text-tsu-600"> Cetak nama & jabatan di bawah TTD</label>
+            <button type="submit" class="btn btn-outline w-full">+ Gunakan Tanda Tangan</button>
+          </form>
+        <% } else { %>
+          <p class="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+            <% if (user.role === 'ADMIN') { %>Semua tanda tangan di pustaka sudah dipakai atau belum ada. <a href="/signatures" class="font-semibold text-tsu-700 hover:underline">Kelola pustaka tanda tangan</a>.
+            <% } else { %>Tidak ada tanda tangan lain yang tersedia. Minta Kaprodi/Admin Prodi menambahkan tanda tangan ke pustaka.<% } %>
+          </p>
+        <% } %>
       <% } %>
     </div>
 

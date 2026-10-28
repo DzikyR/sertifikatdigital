@@ -1,0 +1,95 @@
+<% const json = (o) => JSON.stringify(o); %>
+<%- include('../../partials/app/start', { pageTitle: 'Pustaka Tanda Tangan', pageSubtitle: 'Tanda tangan resmi hanya diunggah dan dikelola Kaprodi/Admin Prodi. Penyelenggara event (termasuk pengurus HMP) hanya memilihnya di tab Template & TTD.' }) %>
+
+<div class="mb-6 grid gap-3 text-sm md:grid-cols-3">
+  <div class="rounded-xl border border-tsu-100 bg-tsu-50 p-4 text-tsu-900">
+    <p class="font-semibold">HMP tidak bisa mengunggah TTD</p>
+    <p class="mt-1 text-tsu-800">Pengurus HMP hanya bisa memakai TTD aktif yang diberi izin &ldquo;Boleh dipakai HMP&rdquo;. Event HMP tetap harus disetujui Kaprodi sebelum terbit.</p>
+  </div>
+  <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+    <p class="font-semibold">Nonaktifkan bila disalahgunakan</p>
+    <p class="mt-1 text-amber-800">TTD nonaktif tidak bisa dipilih lagi, dan event yang belum terbit tetapi memakainya tidak bisa diajukan atau diterbitkan. Sertifikat yang sudah terbit tidak berubah.</p>
+  </div>
+  <div class="rounded-xl border border-slate-200 bg-white p-4 text-slate-700">
+    <p class="font-semibold">Semua perubahan tercatat</p>
+    <p class="mt-1 text-slate-600">Unggah, ubah, nonaktifkan, dan pemakaian TTD di event tercatat di Log Sistem beserta pelakunya.</p>
+  </div>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <section class="space-y-4 lg:col-span-2" aria-labelledby="lib-title">
+    <h2 id="lib-title" class="font-bold text-slate-900">Tanda Tangan (<%= items.length %>)</h2>
+    <% if (!items.length) { %>
+      <div class="card text-center text-sm text-slate-500">Belum ada tanda tangan. Unggah PNG transparan di formulir samping.</div>
+    <% } %>
+    <% items.forEach((l) => { %>
+      <article class="card <%= l.isActive ? '' : 'bg-slate-50' %>">
+        <div class="flex flex-wrap items-start gap-4">
+          <img src="<%= l.imageUrl %>" alt="TTD <%= l.label %>" class="h-20 w-36 shrink-0 rounded-lg border border-slate-200 bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:12px_12px] object-contain <%= l.isActive ? '' : 'opacity-50 grayscale' %>">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-bold text-slate-900"><%= l.label %></h3>
+              <% if (l.isActive) { %><span class="badge bg-emerald-50 text-emerald-800 ring-1 ring-emerald-300">Aktif</span><% } else { %><span class="badge bg-slate-200 text-slate-700 ring-1 ring-slate-300">Nonaktif</span><% } %>
+              <% if (l.hmpAllowed) { %><span class="badge bg-gold-50 text-gold-700 ring-1 ring-gold-300">Boleh dipakai HMP</span><% } else { %><span class="badge bg-tsu-50 text-tsu-700 ring-1 ring-tsu-200">Khusus event Prodi</span><% } %>
+            </div>
+            <p class="mt-0.5 text-sm text-slate-600"><%= [l.signerName, l.signerTitle].filter(Boolean).join(' · ') || 'Tanpa keterangan nama' %></p>
+            <p class="mt-1 text-xs text-slate-500">Diunggah <%= fmtDateTime(l.createdAt) %><%= l.createdBy ? ` oleh ${l.createdBy.name}` : '' %></p>
+            <% if (l.events.length) { %>
+              <p class="mt-2 text-xs text-slate-600">Dipakai di <%= l.events.length %> event:
+                <% l.events.forEach((e, i) => { %><a href="/events/<%= e.id %>" class="font-semibold text-tsu-700 hover:underline"><%= e.title %></a> <span class="text-slate-400">(<%= EVENT_STATUS_META[e.status].label %>)</span><%= i < l.events.length - 1 ? ', ' : '' %><% }) %>
+              </p>
+            <% } else { %>
+              <p class="mt-2 text-xs text-slate-500">Belum dipakai di event mana pun.</p>
+            <% } %>
+          </div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+          <% if (l.isActive) { %>
+            <button class="btn btn-outline py-1.5 text-amber-800" data-action="PATCH /api/signatures/<%= l.id %>" data-body='<%= json({ isActive: false }) %>' data-confirm-title="Nonaktifkan tanda tangan?" data-confirm="&quot;<%= l.label %>&quot; tidak bisa dipilih lagi. Event belum terbit yang memakainya tidak bisa diajukan/diterbitkan sampai TTD ini dilepas atau diaktifkan kembali. Sertifikat yang sudah terbit tidak berubah." data-danger data-ok-label="Nonaktifkan">Nonaktifkan</button>
+          <% } else { %>
+            <button class="btn btn-outline py-1.5" data-action="PATCH /api/signatures/<%= l.id %>" data-body='<%= json({ isActive: true }) %>' data-confirm="Aktifkan kembali &quot;<%= l.label %>&quot;?" data-ok-label="Aktifkan">Aktifkan</button>
+          <% } %>
+          <button class="btn btn-outline py-1.5" data-action="PATCH /api/signatures/<%= l.id %>" data-body='<%= json({ hmpAllowed: !l.hmpAllowed }) %>' data-confirm="<%= l.hmpAllowed ? 'Pengurus HMP tidak bisa lagi memilih TTD ini, dan event HMP yang belum terbit tetapi memakainya tidak bisa diajukan/diterbitkan.' : 'Pengurus HMP dapat memilih TTD ini untuk event HMP (tetap melalui persetujuan Kaprodi).' %>" data-ok-label="Simpan"><%= l.hmpAllowed ? 'Larang untuk HMP' : 'Izinkan untuk HMP' %></button>
+          <button type="button" class="btn btn-outline py-1.5" data-edit-signature='<%= json({ id: l.id, label: l.label, signerName: l.signerName || "", signerTitle: l.signerTitle || "" }) %>'>Ubah Keterangan</button>
+          <% if (!l.events.length) { %>
+            <button class="btn py-1.5 text-red-600 ring-1 ring-red-200 hover:bg-red-50" data-action="DELETE /api/signatures/<%= l.id %>" data-confirm="Hapus &quot;<%= l.label %>&quot; dari pustaka beserta gambarnya?" data-danger data-ok-label="Hapus">Hapus</button>
+          <% } %>
+        </div>
+      </article>
+    <% }) %>
+  </section>
+
+  <section class="card h-fit" aria-labelledby="upload-title">
+    <h2 id="upload-title" class="font-bold text-slate-900">Tambah Tanda Tangan</h2>
+    <form class="mt-4 space-y-3" data-signature-upload autocomplete="off">
+      <div><label class="form-label" for="sl-label">Label <span class="text-red-600">*</span></label><input id="sl-label" name="label" required maxlength="100" class="form-input" placeholder="mis. Kaprodi Informatika / Ketua HMP"></div>
+      <div><label class="form-label" for="sl-name">Nama penandatangan</label><input id="sl-name" name="signerName" maxlength="150" class="form-input" placeholder="Dr. Nama, M.Kom."></div>
+      <div><label class="form-label" for="sl-title">Jabatan / NIP</label><input id="sl-title" name="signerTitle" maxlength="150" class="form-input" placeholder="Ketua Program Studi"></div>
+      <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="hmpAllowed" checked class="rounded border-slate-300 text-tsu-600"> Boleh dipakai pengurus HMP</label>
+      <div>
+        <label class="form-label" for="sl-image">Gambar TTD (PNG transparan) <span class="text-red-600">*</span></label>
+        <input id="sl-image" type="file" name="image" accept="image/png" required class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-tsu-50 file:px-3 file:py-2 file:font-semibold file:text-tsu-700 hover:file:bg-tsu-100">
+        <p class="mt-1 text-xs text-slate-500">PNG maks. 2 MB, latar transparan.</p>
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Unggah ke Pustaka</button>
+    </form>
+  </section>
+</div>
+
+<dialog id="edit-signature" class="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50">
+  <form class="space-y-4 p-6" data-edit-form autocomplete="off">
+    <div>
+      <h3 class="text-lg font-bold text-slate-900">Ubah Keterangan Tanda Tangan</h3>
+      <p class="text-xs text-slate-500">Perubahan ikut diterapkan ke event yang belum terbit. Sertifikat yang sudah terbit tidak berubah. Untuk mengganti gambar, unggah TTD baru lalu nonaktifkan yang lama.</p>
+    </div>
+    <div><label class="form-label" for="es-label">Label <span class="text-red-600">*</span></label><input id="es-label" name="label" required maxlength="100" class="form-input"></div>
+    <div><label class="form-label" for="es-name">Nama penandatangan</label><input id="es-name" name="signerName" maxlength="150" class="form-input"></div>
+    <div><label class="form-label" for="es-title">Jabatan / NIP</label><input id="es-title" name="signerTitle" maxlength="150" class="form-input"></div>
+    <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">
+      <button type="button" class="btn btn-outline" data-edit-cancel>Batal</button>
+      <button type="submit" class="btn btn-primary">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<%- include('../../partials/app/end') %>

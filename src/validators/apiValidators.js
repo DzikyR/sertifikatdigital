@@ -49,6 +49,20 @@ const signatureFields = (optional) => [
   body('showSignerText').optional().isBoolean().toBoolean(),
 ];
 
+// TTD pustaka (Kaprodi/Admin Prodi)
+const libraryFields = (optional) => [
+  ...signatureFields(optional).slice(0, 3),
+  body('isActive').optional().isBoolean().toBoolean(),
+  body('hmpAllowed').optional().isBoolean().toBoolean(),
+];
+
+// Penyelenggara memilih TTD dari pustaka
+const useSignature = [
+  body('librarySignatureId').isString().isLength({ min: 10, max: 40 }).matches(/^[a-z0-9]+$/i).withMessage('Pilih tanda tangan dari pustaka.'),
+  body('showSignerText').optional().isBoolean().toBoolean(),
+];
+const signatureToggle = [body('showSignerText').isBoolean().toBoolean()];
+
 const logoFields = [
   body('label').trim().notEmpty().withMessage('Nama logo wajib diisi (mis. "Logo TSU").').isLength({ max: 100 }).withMessage('Nama logo maksimal 100 karakter.'),
 ];
@@ -139,6 +153,6 @@ const publicSearch = [
 ];
 
 module.exports = {
-  id, pagination, eventFields, listEvents, review, signatureFields, logoFields, listParticipants, participantFields, bulkIds, issueIds, withdraw, blast,
+  id, pagination, eventFields, listEvents, review, signatureFields, libraryFields, useSignature, signatureToggle, logoFields, listParticipants, participantFields, bulkIds, issueIds, withdraw, blast,
   password, createUser, updateUser, approveRequest, setFeature, listUsers, listLogs, publicSearch,
 };

@@ -21,7 +21,7 @@ router.use('/auth', authRoutes);
 // ---------------------------------------------------------------------
 // TERPROTEKSI (login + RBAC per kelompok route)
 // ---------------------------------------------------------------------
-router.use(['/dashboard', '/events', '/approvals', '/admin'], ensureAuthenticated);
+router.use(['/dashboard', '/events', '/approvals', '/signatures', '/admin'], ensureAuthenticated);
 router.use('/', appRoutes);
 
 // REST API (JSON). Endpoint /api/public/* tanpa login; sisanya login + RBAC.

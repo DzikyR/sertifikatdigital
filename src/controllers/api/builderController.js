@@ -11,8 +11,6 @@ const { serializeSignature } = require('../../services/eventService');
 const { permissionsFor } = require('../../services/eventPolicy');
 const { formatDateId, formatDayId } = require('../../utils/format');
 
-const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]));
-const SIG_FIELDS = ['label', 'signerName', 'signerTitle', 'showSignerText'];
 
 /** Contoh nilai isian otomatis untuk pratinjau kanvas (data peserta = contoh). */
 const placeholderSample = (event) => ({
@@ -97,20 +95,20 @@ exports.listSignatures = async (req, res) => {
 };
 
 exports.createSignature = async (req, res) => {
-  const { signature, warning } = await signatureService.create(req.event, req.file, pick(req.validated, SIG_FIELDS));
-  await audit.log({ req, action: 'SIGNATURE_UPLOAD', entity: 'Event', entityId: req.event.id, meta: { label: signature.label } });
-  res.status(201).json({ success: true, data: serializeSignature(signature), warning });
+  const signature = await signatureService.create(req.event, req.validated);
+  await audit.log({ req, action: 'SIGNATURE_USE', entity: 'Event', entityId: req.event.id, meta: { label: signature.label, librarySignatureId: signature.librarySignatureId } });
+  res.status(201).json({ success: true, data: serializeSignature(signature), message: `Tanda tangan "${signature.label}" dipakai. Atur posisinya di Builder.` });
 };
 
 exports.updateSignature = async (req, res) => {
-  const sig = await signatureService.update(req.event, req.params.signatureId, pick(req.validated, SIG_FIELDS), req.file);
+  const sig = await signatureService.update(req.event, req.params.signatureId, req.validated);
   res.json({ success: true, data: serializeSignature(sig) });
 };
 
 exports.deleteSignature = async (req, res) => {
   await signatureService.remove(req.event, req.params.signatureId);
-  await audit.log({ req, action: 'SIGNATURE_DELETE', entity: 'Event', entityId: req.event.id, meta: { signatureId: req.params.signatureId } });
-  res.json({ success: true, message: 'Tanda tangan dihapus.' });
+  await audit.log({ req, action: 'SIGNATURE_DETACH', entity: 'Event', entityId: req.event.id, meta: { signatureId: req.params.signatureId } });
+  res.json({ success: true, message: 'Tanda tangan dilepas dari event.' });
 };
 
 exports.signatureImage = async (req, res) => {
