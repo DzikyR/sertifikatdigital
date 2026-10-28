@@ -55,11 +55,12 @@ async function getDetail(user, eventId) {
   });
 
   // Status email hanya relevan untuk sertifikat yang sudah terbit
-  const [emailStats, total, issued, revoked] = await Promise.all([
+  const [emailStats, total, issued, revoked, withdrawn] = await Promise.all([
     prisma.certificate.groupBy({ by: ['emailStatus'], where: { eventId, issuedAt: { not: null } }, _count: true }),
     prisma.certificate.count({ where: { eventId } }),
     prisma.certificate.count({ where: { eventId, issuedAt: { not: null }, status: 'ACTIVE' } }),
     prisma.certificate.count({ where: { eventId, status: 'REVOKED' } }),
+    prisma.certificate.count({ where: { eventId, withdrawnAt: { not: null }, issuedAt: null, status: 'ACTIVE' } }),
   ]);
 
   const { templatePath, signatures, logos, ...rest } = event;
@@ -71,7 +72,7 @@ async function getDetail(user, eventId) {
     logos: logos.map(({ imagePath, ...l }) => ({ ...l, imageUrl: `/api/events/${l.eventId}/logos/${l.id}/image` })),
     stats: {
       participants: total,
-      issue: { issued, unissued: total - issued - revoked, revoked },
+      issue: { issued, unissued: total - issued - revoked, revoked, withdrawn },
       email: Object.fromEntries(emailStats.map((s) => [s.emailStatus, s._count])),
     },
     readiness: await readiness(event),
@@ -222,7 +223,7 @@ async function unlock(event, user, note) {
   });
   await prisma.certificate.updateMany({
     where: { eventId: event.id },
-    data: { issuedAt: null, pdfPath: null, emailStatus: 'PENDING', emailError: null },
+    data: { issuedAt: null, pdfPath: null, emailStatus: 'PENDING', emailError: null, withdrawnAt: null, withdrawNote: null },
   });
   await storage.removeDir(`certificates/${event.id}`);
   return { event: updated, issued, emailed };
@@ -238,7 +239,7 @@ async function publish(event, { issueAll = true } = {}) {
   const from = event.organizerType === 'PRODI' ? [S.DRAFT] : [S.APPROVED];
   const now = new Date();
   const published = await transition(event, from, { status: S.PUBLISHED, publishedAt: now });
-  if (issueAll) await prisma.certificate.updateMany({ where: { eventId: event.id, issuedAt: null }, data: { issuedAt: now } });
+  if (issueAll) await prisma.certificate.updateMany({ where: { eventId: event.id, issuedAt: null }, data: { issuedAt: now, withdrawnAt: null, withdrawNote: null } });
   return published;
 }
 

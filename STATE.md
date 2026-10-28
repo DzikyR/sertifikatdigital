@@ -40,6 +40,9 @@ Migrasi yang sudah diterapkan: `init`, `signature_signer_text`, `cert_number_def
 - **Kelola peserta di tabel** (selama event masih bisa diedit): tombol **Tambah Peserta** (form manual, nomor urut melanjutkan), tombol **Edit** per baris (dialog; nomor & kode verifikasi tetap, HMAC dihitung ulang), checkbox per baris + pilih semua + **Hapus Terpilih**, dan **Hapus Semua** (dipindah dari kartu import ke toolbar tabel). Endpoint: `POST /participants`, `PATCH /participants/:id`, `POST /participants/bulk-delete`. Duplikat email+peran ditolak (409). Diuji 15/15 di browser.
 - **Logo (lebih dari satu)**: model baru `EventLogo` (migrasi `event_logos`), maks. 10 logo per event. Diunggah di tab Template & TTD (PNG/JPG/WEBP/SVG maks. 5 MB; divalidasi & dinormalkan ke PNG oleh sharp, SVG dirender 300 dpi; peringatan bila tanpa latar transparan). Posisi & ukuran diatur di builder (proporsional), dicetak di bawah lapisan teks. Ikut terkunci bersama template saat event diajukan/terbit. Diuji 13/13 (API + browser + PDF).
 
+### Pembaruan 28 Oktober 2026
+- **Perbaiki sertifikat terpilih tanpa Buka Kunci** (fitur `cert.correct`, pengelola event terbit): di tab Peserta, centang sertifikat terbit → **Tarik untuk Perbaikan** (alasan wajib), atau tombol **Perbaiki** per baris (tarik + langsung buka form edit). Hanya sertifikat terpilih yang ditarik dari publik (QR menampilkan "sedang diperbaiki oleh penyelenggara"), cache PDF dihapus, status email direset; sertifikat lain & event tetap terbit. Setelah diedit (nomor & QR tetap, HMAC dihitung ulang, nilai lama tercatat di log `CERT_CORRECT`), terbitkan lagi lewat **Terbitkan** / **Terbitkan Terpilih** dengan pratinjau. Status & filter baru **Sedang diperbaiki**. Endpoint `POST /participants/withdraw`; `PATCH /participants/:id` pada event terbit hanya untuk sertifikat yang belum terbit/ditarik. Migrasi `certificate_withdraw` (`withdrawnAt`, `withdrawNote`). **Buka Kunci** tetap dipakai untuk perubahan mendasar (template, layout, info event). Diuji 32/32 skenario API (salinan database).
+
 ## 2. Bug / error / risiko yang masih tersisa
 
 Tidak ada bug yang diketahui gagal di pengujian. Yang tersisa adalah hal yang **belum terverifikasi** atau **keterbatasan**:
@@ -53,7 +56,7 @@ Tidak ada bug yang diketahui gagal di pengujian. Yang tersisa adalah hal yang **
 - **Tes otomatis tidak ada di repo.** Skrip uji (E2E API, smoke test halaman, uji UI Playwright) masih di folder scratchpad sementara dan bisa hilang.
 - **Belum menjadi repository git.** Belum ada commit sama sekali.
 - **Antrean email berjalan di dalam proses server.** Jika server restart di tengah blast, sisa email tetap berstatus antre dan harus dilanjutkan manual lewat tombol **Kirim yang Belum** di tab Peserta.
-- **Peserta tidak bisa ditambah setelah event terbit** (template, layout & peserta terkunci sejak diajukan/terbit).
+- **Peserta tidak bisa ditambah setelah event terbit** (template, layout & peserta terkunci sejak diajukan/terbit). Data peserta yang salah bisa diperbaiki per sertifikat lewat **Tarik untuk Perbaikan**.
 - **Font bawaan hanya subset Latin** (huruf A-Z, angka, tanda baca, aksen Latin-1). Huruf di luar itu (mis. ā, ş) tampil kotak pada 27 font bawaan; font standar PDF & font kustom tidak terpengaruh.
 - **Lisensi font kustom** tidak diperiksa sistem. Pengunggah bertanggung jawab memastikan font boleh disematkan di PDF.
 - **Pencarian publik berdasarkan email** menampilkan semua sertifikat milik email itu kepada siapa pun yang mengetahui emailnya (sesuai spesifikasi, tapi perlu disadari dari sisi privasi).

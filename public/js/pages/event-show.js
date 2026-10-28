@@ -147,7 +147,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Pilih beberapa peserta -> aksi massal (draf: hapus; terbit: terbitkan / kirim email)
+  // Alasan perbaikan (wajib, tercatat di log & tampil di tabel)
+  const askWithdraw = (count) => window.App.dialog({
+    title: `Tarik ${count} sertifikat untuk diperbaiki?`,
+    message: `Hanya sertifikat terpilih yang ditarik dari publik (QR menampilkan "sedang diperbaiki"); sertifikat lain tetap terbit. Status email direset. Setelah datanya diedit, terbitkan kembali. Nomor & QR tetap sama.`,
+    okLabel: 'Tarik',
+    input: { label: 'Alasan perbaikan (mis. salah ketik nama)', required: true },
+  });
+  const withdraw = (url, ids, note) => api('POST', url, { ids, note });
+
+  // Pilih beberapa peserta -> aksi massal (draf: hapus; terbit: tarik untuk perbaikan / terbitkan / kirim email)
   const bulkBar = document.querySelector('[data-bulk-bar]');
   if (bulkBar) {
     const rows = [...document.querySelectorAll('[data-select-row]')];
@@ -158,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const delBtn = bulkBar.querySelector('[data-bulk-delete]');
     const issueBtn = bulkBar.querySelector('[data-bulk-issue]');
     const emailBtn = bulkBar.querySelector('[data-bulk-email]');
+    const withdrawBtn = bulkBar.querySelector('[data-bulk-withdraw]');
     const refresh = () => {
       const sel = selected();
       const unissued = sel.filter((cb) => cb.dataset.issued === '0' && cb.dataset.active === '1').length;
@@ -165,8 +175,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (delBtn) delBtn.disabled = sel.length === 0;
       if (issueBtn) issueBtn.disabled = unissued === 0;
       if (emailBtn) emailBtn.disabled = sendable === 0;
+      if (withdrawBtn) withdrawBtn.disabled = sendable === 0;
       const parts = [`${sel.length} peserta dipilih`];
-      if (issueBtn || emailBtn) parts.push(`${unissued} belum terbit`, `${sendable} siap dikirimi email`);
+      if (issueBtn || emailBtn || withdrawBtn) parts.push(`${unissued} belum terbit`, `${sendable} terbit`);
       countEl.textContent = sel.length ? parts.join(' · ') : idleText;
       if (all) {
         all.checked = sel.length > 0 && sel.length === rows.length;
@@ -207,6 +218,20 @@ document.addEventListener('DOMContentLoaded', () => {
         onConfirm: () => postAndReload(bulkBar.dataset.issueUrl, { ids }),
       });
     });
+    withdrawBtn?.addEventListener('click', async () => {
+      const ids = selected().filter((cb) => cb.dataset.issued === '1' && cb.dataset.active === '1').map((cb) => cb.value);
+      const note = await askWithdraw(ids.length);
+      if (!note) return;
+      setBusy(withdrawBtn, true);
+      try {
+        const res = await withdraw(bulkBar.dataset.withdrawUrl, ids, note);
+        flashNext(res.message);
+        location.href = `${location.pathname}?tab=peserta&issueStatus=withdrawn`;
+      } catch (err) {
+        toast(err.message, 'error', 8000);
+        setBusy(withdrawBtn, false);
+      }
+    });
     emailBtn?.addEventListener('click', () => {
       const ids = selected().filter((cb) => cb.dataset.issued === '1' && cb.dataset.active === '1').map((cb) => cb.value);
       const skipped = selected().length - ids.length;
@@ -224,15 +249,34 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editDlg) {
     const form = editDlg.querySelector('[data-edit-form]');
     let editingId = null;
+    let reloadOnClose = false;
+    const openEdit = (d) => {
+      editingId = d.id;
+      ['name', 'email', 'role', 'institution'].forEach((k) => { form.elements[k].value = d[k] || ''; });
+      editDlg.showModal();
+      form.elements.name.focus();
+    };
     document.querySelectorAll('[data-edit-participant]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const d = JSON.parse(btn.dataset.editParticipant);
-        editingId = d.id;
-        ['name', 'email', 'role', 'institution'].forEach((k) => { form.elements[k].value = d[k] || ''; });
-        editDlg.showModal();
-        form.elements.name.focus();
+      btn.addEventListener('click', () => openEdit(JSON.parse(btn.dataset.editParticipant)));
+    });
+    // Perbaiki satu sertifikat terbit: tarik dulu, lalu langsung buka form edit
+    document.querySelectorAll('[data-correct-row]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const d = JSON.parse(btn.dataset.correctRow);
+        const note = await askWithdraw(1);
+        if (!note) return;
+        try {
+          await withdraw(`${editDlg.dataset.baseUrl}/withdraw`, [d.id], note);
+        } catch (err) {
+          toast(err.message, 'error', 8000);
+          return;
+        }
+        reloadOnClose = true; // status baris sudah berubah walau edit dibatalkan
+        toast('Sertifikat ditarik. Silakan perbaiki datanya.', 'info');
+        openEdit(d);
       });
     });
+    editDlg.addEventListener('close', () => { if (reloadOnClose) location.reload(); });
     editDlg.querySelectorAll('[data-edit-cancel]').forEach((b) => b.addEventListener('click', () => editDlg.close()));
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -242,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await api('PATCH', `${editDlg.dataset.baseUrl}/${editingId}`, body);
         flashNext(res.message);
+        reloadOnClose = false;
         location.reload();
       } catch (err) {
         toast(err.message, 'error', 7000);

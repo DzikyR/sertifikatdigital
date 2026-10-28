@@ -12,6 +12,9 @@ const certInclude = {
 /** Status keabsahan sertifikat (dipakai halaman verifikasi QR & download publik). */
 function evaluate(cert) {
   if (!cert) return { valid: false, reason: 'NOT_FOUND', message: 'Sertifikat tidak ditemukan. Kemungkinan QR Code palsu atau salah ketik.' };
+  if (cert.event.status === 'PUBLISHED' && !cert.issuedAt && cert.withdrawnAt && cert.status === 'ACTIVE') {
+    return { valid: false, reason: 'NOT_ISSUED', message: 'Sertifikat sedang diperbaiki oleh penyelenggara dan akan segera diterbitkan ulang.' };
+  }
   if (cert.event.status !== 'PUBLISHED' || !cert.issuedAt) {
     return { valid: false, reason: 'NOT_ISSUED', message: 'Sertifikat belum diterbitkan.' };
   }

@@ -57,7 +57,7 @@ const logoFields = [
 const listParticipants = [
   ...pagination,
   query('emailStatus').optional({ values: 'falsy' }).isIn(EMAIL_STATUSES),
-  query('issueStatus').optional({ values: 'falsy' }).isIn(['issued', 'unissued', 'revoked']),
+  query('issueStatus').optional({ values: 'falsy' }).isIn(['issued', 'unissued', 'revoked', 'withdrawn']),
 ];
 
 const issueIds = [
@@ -75,6 +75,11 @@ const participantFields = [
 const bulkIds = [
   body('ids').isArray({ min: 1, max: 2000 }).withMessage('Pilih minimal satu peserta.'),
   body('ids.*').isString().isLength({ min: 10, max: 40 }).matches(/^[a-z0-9]+$/i).withMessage('ID peserta tidak valid.'),
+];
+
+const withdraw = [
+  ...bulkIds,
+  body('note').optional().trim().isLength({ max: 300 }).withMessage('Alasan maksimal 300 karakter.'),
 ];
 
 const blast = [
@@ -134,6 +139,6 @@ const publicSearch = [
 ];
 
 module.exports = {
-  id, pagination, eventFields, listEvents, review, signatureFields, logoFields, listParticipants, participantFields, bulkIds, issueIds, blast,
+  id, pagination, eventFields, listEvents, review, signatureFields, logoFields, listParticipants, participantFields, bulkIds, issueIds, withdraw, blast,
   password, createUser, updateUser, approveRequest, setFeature, listUsers, listLogs, publicSearch,
 };

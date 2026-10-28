@@ -1,3 +1,4 @@
+const prisma = require('../../config/database');
 const participantService = require('../../services/participantService');
 const audit = require('../../services/auditService');
 const AppError = require('../../utils/AppError');
@@ -48,9 +49,24 @@ exports.create = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const cert = await participantService.updateOne(req.event, req.params.certificateId, req.validated);
-  await audit.log({ req, action: 'PARTICIPANT_UPDATE', entity: 'Certificate', entityId: cert.id, meta: { email: cert.participantEmail } });
-  res.json({ success: true, data: { id: cert.id }, message: `Data ${cert.participantName} diperbarui.` });
+  const correcting = req.event.status === 'PUBLISHED';
+  const before = correcting
+    ? await prisma.certificate.findFirst({ where: { id: req.params.certificateId, eventId: req.event.id } })
+    : null;
+  const cert = await participantService.updateOne(req.event, req.params.certificateId, req.validated, { onlyUnissued: correcting });
+  const meta = { email: cert.participantEmail };
+  if (before) {
+    // Catat nilai lama agar perbaikan sertifikat yang pernah terbit dapat ditelusuri
+    meta.before = { name: before.participantName, email: before.participantEmail, role: before.participantRole, institution: before.institution };
+  }
+  await audit.log({ req, action: correcting ? 'CERT_CORRECT' : 'PARTICIPANT_UPDATE', entity: 'Certificate', entityId: cert.id, meta });
+  res.json({
+    success: true,
+    data: { id: cert.id },
+    message: correcting
+      ? `Data ${cert.participantName} diperbaiki. Periksa pratinjau lalu klik Terbitkan agar sertifikat valid kembali.`
+      : `Data ${cert.participantName} diperbarui.`,
+  });
 };
 
 exports.issue = async (req, res) => {
@@ -64,6 +80,18 @@ exports.issue = async (req, res) => {
     message: count
       ? `${count} sertifikat diterbitkan dan kini dapat diakses peserta via web.${skipped ? ` ${skipped} dilewati (sudah terbit/dicabut).` : ''}`
       : 'Tidak ada sertifikat yang perlu diterbitkan.',
+  });
+};
+
+exports.withdraw = async (req, res) => {
+  const { ids, note } = req.validated;
+  const count = await participantService.withdraw(req.event, ids, note);
+  await audit.log({ req, action: 'CERT_WITHDRAW', entity: 'Event', entityId: req.event.id, meta: { count, ids, note: note || null } });
+  const skipped = ids.length - count;
+  res.json({
+    success: true,
+    data: { withdrawn: count, skipped },
+    message: `${count} sertifikat ditarik untuk diperbaiki; sertifikat lain tetap terbit. Klik Edit, lalu Terbitkan kembali.${skipped ? ` ${skipped} dilewati (belum terbit/dicabut).` : ''}`,
   });
 };
 

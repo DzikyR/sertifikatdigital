@@ -204,14 +204,19 @@
         <div>
           <h2 class="font-bold text-slate-900">Manajemen Penerbitan &amp; Email</h2>
           <p class="mt-1 text-sm text-slate-500">Sertifikat yang <strong>terbit</strong> dapat diakses peserta via web (verifikasi QR, pencarian, unduh). Pengiriman <strong>email</strong> terpisah dan hanya dilakukan bila diperlukan.</p>
+          <% if (p.correct) { %>
+            <p class="mt-1 text-sm text-slate-500"><strong>Ada data yang salah?</strong> Centang sertifikat yang perlu diperbaiki lalu klik <strong>Tarik untuk Perbaikan</strong> (atau tombol <strong>Perbaiki</strong> per baris). Hanya sertifikat itu yang ditarik dari publik; sertifikat lain tetap terbit &amp; valid. Setelah diedit, terbitkan kembali. Nomor &amp; QR tidak berubah.</p>
+          <% } %>
         </div>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-2">
           <!-- Status penerbitan -->
           <section class="rounded-xl border border-slate-200 p-4">
             <h3 class="text-xs font-bold uppercase tracking-wide text-slate-500">Status Penerbitan</h3>
-            <dl class="mt-3 grid grid-cols-3 gap-2 text-center">
-              <% [['Terbit', is.issued, 'text-emerald-700', 'issued'], ['Belum terbit', is.unissued, 'text-slate-700', 'unissued'], ['Dicabut', is.revoked, 'text-red-700', 'revoked']].forEach(([l, n, cls, key]) => { %>
+            <% const tiles = [['Terbit', is.issued, 'text-emerald-700', 'issued'], ['Belum terbit', is.unissued, 'text-slate-700', 'unissued'], ['Dicabut', is.revoked, 'text-red-700', 'revoked']];
+               if (is.withdrawn) tiles.splice(2, 0, ['Diperbaiki', is.withdrawn, 'text-amber-700', 'withdrawn']); %>
+            <dl class="mt-3 grid <%= tiles.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3' %> gap-2 text-center">
+              <% tiles.forEach(([l, n, cls, key]) => { %>
                 <a href="?tab=peserta&issueStatus=<%= key %>" class="rounded-lg bg-slate-50 px-2 py-2 hover:bg-tsu-50 <%= query.issueStatus === key ? 'ring-2 ring-tsu-400' : '' %>">
                   <dd class="text-2xl font-bold tabular-nums <%= cls %>"><%= n %></dd><dt class="text-xs text-slate-500"><%= l %></dt>
                 </a>
@@ -302,7 +307,7 @@
         <% if (issued) { %>
           <select name="issueStatus" class="form-input max-w-48" aria-label="Filter status penerbitan">
             <option value="">Semua status terbit</option>
-            <% [['issued', 'Terbit'], ['unissued', 'Belum terbit'], ['revoked', 'Dicabut']].forEach(([k, l]) => { %><option value="<%= k %>" <%= query.issueStatus === k ? 'selected' : '' %>><%= l %></option><% }) %>
+            <% [['issued', 'Terbit'], ['unissued', 'Belum terbit'], ['withdrawn', 'Sedang diperbaiki'], ['revoked', 'Dicabut']].forEach(([k, l]) => { %><option value="<%= k %>" <%= query.issueStatus === k ? 'selected' : '' %>><%= l %></option><% }) %>
           </select>
           <select name="emailStatus" class="form-input max-w-48" aria-label="Filter status email">
             <option value="">Semua status email</option>
@@ -313,11 +318,14 @@
         <button class="btn btn-outline">Cari</button>
         <p class="ml-auto text-sm text-slate-500"><%= participants.pagination.total %> peserta<%= participants.pagination.total > participants.items.length ? ` (menampilkan ${participants.items.length})` : '' %></p>
       </form>
-      <% if (issued && (p.issue || p.blast)) { %>
-        <!-- Toolbar aksi massal penerbitan / email -->
-        <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/60 px-4 py-3" data-bulk-bar data-issue-url="<%= base %>/participants/issue" data-blast-url="<%= base %>/blast">
+      <% if (issued && (p.issue || p.blast || p.correct)) { %>
+        <!-- Toolbar aksi massal penerbitan / perbaikan / email -->
+        <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/60 px-4 py-3" data-bulk-bar data-issue-url="<%= base %>/participants/issue" data-blast-url="<%= base %>/blast" data-withdraw-url="<%= base %>/participants/withdraw">
           <span class="text-sm text-slate-600" data-bulk-count aria-live="polite">Centang peserta untuk aksi massal.</span>
           <div class="ml-auto flex flex-wrap gap-2">
+            <% if (p.correct) { %>
+              <button type="button" class="btn btn-outline py-2 text-amber-800 ring-amber-300 disabled:cursor-not-allowed disabled:opacity-40" data-bulk-withdraw disabled title="Tarik sertifikat terpilih dari publik agar datanya bisa diperbaiki">Tarik untuk Perbaikan</button>
+            <% } %>
             <% if (p.issue) { %>
               <button type="button" class="btn btn-accent py-2 disabled:cursor-not-allowed disabled:opacity-40" data-bulk-issue disabled>Terbitkan Terpilih</button>
             <% } %>
@@ -377,7 +385,7 @@
           <table class="w-full text-left text-sm">
             <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <% if (p.editParticipants || (issued && (p.issue || p.blast))) { %>
+                <% if (p.editParticipants || (issued && (p.issue || p.blast || p.correct))) { %>
                   <th class="w-10 px-4 py-3"><input type="checkbox" class="rounded border-slate-300 text-tsu-600" data-select-all aria-label="Pilih semua peserta yang ditampilkan"></th>
                 <% } %>
                 <th class="px-4 py-3">No. Sertifikat</th><th class="px-4 py-3">Nama</th><th class="px-4 py-3">Email</th><th class="px-4 py-3">Peran</th>
@@ -388,7 +396,7 @@
             <tbody class="divide-y divide-slate-100">
               <% participants.items.forEach((c) => { const em = EMAIL_STATUS_META[c.emailStatus]; %>
                 <tr class="<%= c.status === 'REVOKED' ? 'bg-red-50/50 text-slate-400' : 'hover:bg-slate-50' %> has-[:checked]:bg-tsu-50" data-row data-id="<%= c.id %>" data-name="<%= c.participantName %>" data-email="<%= c.participantEmail %>" data-role="<%= c.participantRole %>" data-number="<%= c.certificateNumber %>" data-issued="<%= c.issuedAt ? '1' : '0' %>" data-active="<%= c.status === 'ACTIVE' ? '1' : '0' %>">
-                  <% if (p.editParticipants || (issued && (p.issue || p.blast))) { %>
+                  <% if (p.editParticipants || (issued && (p.issue || p.blast || p.correct))) { %>
                     <td class="px-4 py-2.5"><input type="checkbox" value="<%= c.id %>" class="rounded border-slate-300 text-tsu-600" data-select-row data-issued="<%= c.issuedAt ? '1' : '0' %>" data-active="<%= c.status === 'ACTIVE' ? '1' : '0' %>" aria-label="Pilih <%= c.participantName %>"></td>
                   <% } %>
                   <td class="whitespace-nowrap px-4 py-2.5 font-mono text-xs"><%= c.certificateNumber %></td>
@@ -399,6 +407,7 @@
                     <td class="whitespace-nowrap px-4 py-2.5">
                       <% if (c.status === 'REVOKED') { %><span class="badge bg-red-100 text-red-700 ring-1 ring-red-300">Dicabut</span>
                       <% } else if (c.issuedAt) { %><span class="badge bg-emerald-50 text-emerald-800 ring-1 ring-emerald-300" title="Terbit <%= fmtDateTime(c.issuedAt) %>">Terbit</span><span class="mt-0.5 block text-[11px] text-slate-500"><%= fmtDate(c.issuedAt) %></span>
+                      <% } else if (c.withdrawnAt) { %><span class="badge bg-amber-50 text-amber-800 ring-1 ring-amber-300" title="Ditarik <%= fmtDateTime(c.withdrawnAt) %><%= c.withdrawNote ? ` · ${c.withdrawNote}` : '' %>">Sedang diperbaiki</span><% if (c.withdrawNote) { %><span class="mt-0.5 block max-w-48 truncate text-[11px] text-amber-700" title="<%= c.withdrawNote %>"><%= c.withdrawNote %></span><% } %>
                       <% } else { %><span class="badge bg-slate-100 text-slate-600 ring-1 ring-slate-300">Belum terbit</span><% } %>
                     </td>
                     <td class="whitespace-nowrap px-4 py-2.5">
@@ -415,6 +424,14 @@
                     <% } %>
                     <% if (issued && p.issue && !c.issuedAt && c.status === 'ACTIVE') { %>
                       <button class="ml-3 text-xs font-semibold text-emerald-700 hover:underline" data-preview-issue="one" data-id="<%= c.id %>" data-url="<%= base %>/participants/issue" data-body='<%= json({ ids: [c.id] }) %>' data-confirm-label="Terbitkan">Terbitkan</button>
+                    <% } %>
+                    <% const editData = json({ id: c.id, name: c.participantName, email: c.participantEmail, role: c.participantRole, institution: c.institution || "" }); %>
+                    <% if (issued && p.correct && c.status === 'ACTIVE') { %>
+                      <% if (c.issuedAt) { %>
+                        <button type="button" class="ml-3 text-xs font-semibold text-amber-700 hover:underline" data-correct-row='<%= editData %>' title="Tarik sertifikat ini dari publik lalu edit datanya">Perbaiki</button>
+                      <% } else { %>
+                        <button type="button" class="ml-3 text-xs font-semibold text-tsu-700 hover:underline" data-edit-participant='<%= editData %>'>Edit</button>
+                      <% } %>
                     <% } %>
                     <% if (p.editParticipants) { %>
                       <button type="button" class="ml-3 text-xs font-semibold text-tsu-700 hover:underline" data-edit-participant='<%= json({ id: c.id, name: c.participantName, email: c.participantEmail, role: c.participantRole, institution: c.institution || "" }) %>'>Edit</button>
@@ -438,14 +455,14 @@
     </div>
 
 
-    <% if (p.editParticipants) { %>
-      <!-- Dialog edit peserta -->
+    <% if (p.editParticipants || (issued && p.correct)) { %>
+      <!-- Dialog edit peserta (draf, atau perbaikan sertifikat yang ditarik setelah terbit) -->
       <dialog id="edit-participant" class="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/50" data-base-url="<%= base %>/participants">
         <form class="space-y-4 p-6" data-edit-form autocomplete="off">
           <div class="flex items-start justify-between gap-3">
             <div>
               <h3 class="text-lg font-bold text-slate-900">Edit Data Peserta</h3>
-              <p class="text-xs text-slate-500">Nomor sertifikat tidak berubah.</p>
+              <p class="text-xs text-slate-500">Nomor sertifikat &amp; kode QR tidak berubah.<% if (issued) { %> Setelah disimpan, periksa pratinjau lalu klik <strong>Terbitkan</strong> agar sertifikat valid kembali.<% } %></p>
             </div>
             <button type="button" class="rounded-md p-1 text-slate-400 hover:bg-slate-100" data-edit-cancel aria-label="Tutup">&times;</button>
           </div>

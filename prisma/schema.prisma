@@ -193,6 +193,10 @@ model Certificate {
   status   CertificateStatus @default(ACTIVE)
   issuedAt DateTime?
 
+  // Ditarik sementara dari publik untuk diperbaiki (event tetap terbit); dikosongkan saat terbit ulang
+  withdrawnAt  DateTime?
+  withdrawNote String?   @db.VarChar(300)
+
   emailStatus   EmailStatus @default(PENDING)
   emailSentAt   DateTime?
   emailError    String?     @db.Text

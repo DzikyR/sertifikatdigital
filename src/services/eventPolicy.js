@@ -17,6 +17,8 @@ const featureService = require('./featureService');
  *  - Setelah PUBLISHED (event terkunci), penerbitan per peserta & pengiriman email dikelola
  *    terpisah: sertifikat baru bisa diakses publik setelah diterbitkan (issuedAt), dan email
  *    hanya dikirim bila diminta.
+ *  - Perbaikan kecil setelah terbit tidak perlu Buka Kunci: sertifikat terpilih ditarik (`correct`),
+ *    datanya diubah, lalu diterbitkan ulang; sertifikat lain tetap terbit & valid.
  *
  * Setiap aksi = aturan role/status (`base`) + fitur yang bisa dimatikan Super Admin (`feature`).
  */
@@ -62,6 +64,7 @@ const ACTIONS = {
   issue: { base: isIssuedManager, feature: 'event.publish' },
   blast: { base: isIssuedManager, feature: 'cert.blast' },
   revoke: { base: isIssuedManager, feature: 'cert.revoke' },
+  correct: { base: isIssuedManager, feature: 'cert.correct' },
   downloadPdf: { base: canView, feature: 'cert.download' },
 };
 

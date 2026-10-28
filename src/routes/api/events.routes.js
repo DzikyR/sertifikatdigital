@@ -20,6 +20,8 @@ router.get('/participants/xlsx-template', participant.xlsxTemplate);
 
 // Semua route di bawah memuat event + cek hak lihat
 const one = Router({ mergeParams: true });
+// Ubah data peserta: saat draf (editParticipants) atau perbaikan setelah terbit (correct; dicek lagi di service)
+const canEditOrCorrect = (req, res, next) => (req.event.status === 'PUBLISHED' ? can('correct') : can('editParticipants'))(req, res, next);
 router.use('/:eventId', v.id('eventId'), validate, loadEvent, one);
 
 one.get('/', event.show);
@@ -52,9 +54,10 @@ one.get('/participants', v.listParticipants, validate, participant.list);
 one.post('/participants/import', can('editParticipants'), csvUpload.single('file'), participant.importCsv);
 one.post('/participants', can('editParticipants'), v.participantFields, validate, participant.create);
 one.post('/participants/issue', can('issue'), v.issueIds, validate, participant.issue);
+one.post('/participants/withdraw', can('correct'), v.withdraw, validate, participant.withdraw);
 one.post('/participants/bulk-delete', can('editParticipants'), v.bulkIds, validate, participant.removeMany);
 one.delete('/participants', can('editParticipants'), participant.removeAll);
-one.patch('/participants/:certificateId', can('editParticipants'), v.id('certificateId'), v.participantFields, validate, participant.update);
+one.patch('/participants/:certificateId', canEditOrCorrect, v.id('certificateId'), v.participantFields, validate, participant.update);
 one.delete('/participants/:certificateId', can('editParticipants'), participant.remove);
 one.get('/participants/:certificateId/pdf', can('downloadPdf'), event.certificatePdf);
 one.get('/participants/:certificateId/preview', v.id('certificateId'), validate, event.participantPreview);

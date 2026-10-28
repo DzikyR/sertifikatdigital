@@ -5,6 +5,8 @@ const prisma = require('../config/database');
 const AppError = require('../utils/AppError');
 const { formatCertNumber } = require('../utils/format');
 const { generateVerificationCode, signCertificate } = require('../utils/certCrypto');
+const storage = require('../utils/storage');
+const blastService = require('./blastService');
 
 const MAX_ROWS = 2000;
 
@@ -317,8 +319,30 @@ async function renumber(event) {
 async function issue(event, ids) {
   const where = { eventId: event.id, issuedAt: null, status: 'ACTIVE' };
   if (ids?.length) where.id = { in: ids };
-  const { count } = await prisma.certificate.updateMany({ where, data: { issuedAt: new Date() } });
+  const { count } = await prisma.certificate.updateMany({ where, data: { issuedAt: new Date(), withdrawnAt: null, withdrawNote: null } });
   return count;
+}
+
+/**
+ * Tarik sertifikat terpilih dari akses publik agar datanya bisa diperbaiki, tanpa membuka kunci event.
+ * Sertifikat lain tetap terbit. Nomor & kode QR tetap, sehingga QR yang tersebar valid lagi setelah
+ * diterbitkan ulang. Cache PDF dihapus dan status email direset karena email lama berisi data yang salah.
+ */
+async function withdraw(event, ids, note) {
+  if (blastService.isRunning(event.id)) {
+    throw new AppError('Pengiriman email sedang berjalan untuk event ini. Tunggu sampai selesai.', 409);
+  }
+  const where = { eventId: event.id, id: { in: ids }, issuedAt: { not: null }, status: 'ACTIVE' };
+  const certs = await prisma.certificate.findMany({ where, select: { id: true, pdfPath: true } });
+  if (!certs.length) throw new AppError('Tidak ada sertifikat terbit yang dipilih.', 422);
+  await prisma.certificate.updateMany({
+    where: { id: { in: certs.map((c) => c.id) } },
+    data: {
+      issuedAt: null, pdfPath: null, emailStatus: 'PENDING', emailError: null, withdrawnAt: new Date(), withdrawNote: note || null,
+    },
+  });
+  await Promise.all(certs.filter((c) => c.pdfPath).map((c) => storage.removeFile(c.pdfPath)));
+  return certs.length;
 }
 
 // Filter status penerbitan di tabel manajemen
@@ -326,6 +350,7 @@ const ISSUE_FILTERS = {
   issued: { issuedAt: { not: null }, status: 'ACTIVE' },
   unissued: { issuedAt: null, status: 'ACTIVE' },
   revoked: { status: 'REVOKED' },
+  withdrawn: { withdrawnAt: { not: null }, issuedAt: null, status: 'ACTIVE' },
 };
 
 async function list(event, { q, emailStatus, issueStatus, page = 1, pageSize = 50 }) {
@@ -349,6 +374,7 @@ async function list(event, { q, emailStatus, issueStatus, page = 1, pageSize = 5
         id: true, certificateNumber: true, participantName: true, participantEmail: true,
         participantRole: true, institution: true, status: true, issuedAt: true,
         emailStatus: true, emailSentAt: true, emailError: true, downloadCount: true, verificationCode: true,
+        withdrawnAt: true, withdrawNote: true,
       },
     }),
   ]);
@@ -393,10 +419,15 @@ async function addOne(event, input) {
 /**
  * Ubah data peserta. Nomor sertifikat & kode verifikasi tetap; tanda tangan HMAC dihitung
  * ulang karena nama/email/peran termasuk data yang dilindungi.
+ * `onlyUnissued`: event sudah terbit -> hanya sertifikat yang belum terbit / sudah ditarik.
  */
-async function updateOne(event, certificateId, input) {
+async function updateOne(event, certificateId, input, { onlyUnissued = false } = {}) {
   const cert = await prisma.certificate.findFirst({ where: { id: certificateId, eventId: event.id } });
   if (!cert) throw new AppError('Peserta tidak ditemukan.', 404);
+  if (onlyUnissued && cert.issuedAt) {
+    throw new AppError('Sertifikat ini masih terbit. Tarik untuk perbaikan terlebih dahulu.', 409);
+  }
+  if (onlyUnissued && cert.status !== 'ACTIVE') throw new AppError('Sertifikat yang dicabut tidak dapat diubah.', 409);
   const p = cleanParticipant(input);
   await assertNotDuplicate(event, p, cert.id);
 
@@ -438,5 +469,5 @@ async function setStatus(event, certificateId, status) {
 }
 
 module.exports = {
-  CSV_TEMPLATE, buildXlsxTemplate, parseParticipants, importParticipants, addOne, updateOne, issue, renumber, list, remove, removeMany, removeAll, setStatus,
+  CSV_TEMPLATE, buildXlsxTemplate, parseParticipants, importParticipants, addOne, updateOne, issue, withdraw, renumber, list, remove, removeMany, removeAll, setStatus,
 };

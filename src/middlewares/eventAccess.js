@@ -12,6 +12,7 @@ const ACTION_MESSAGES = {
   deleteEvent: EDIT_MSG,
   blast: ISSUED_MSG,
   revoke: ISSUED_MSG,
+  correct: ISSUED_MSG,
   submit: 'Event tidak dapat diajukan pada status saat ini.',
   review: 'Event tidak sedang menunggu persetujuan.',
   publish: 'Event belum dapat diterbitkan pada status saat ini.',

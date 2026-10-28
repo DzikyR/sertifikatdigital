@@ -24,6 +24,7 @@ const FEATURES = [
 
   // ---- Sertifikat terbit ----
   { key: 'cert.blast', group: 'Sertifikat', label: 'Mengirim / mengirim ulang email sertifikat', roles: ['ADMIN', 'HMP'] },
+  { key: 'cert.correct', group: 'Sertifikat', label: 'Menarik sertifikat terpilih untuk diperbaiki (event tetap terbit)', roles: ['ADMIN', 'HMP'] },
   { key: 'cert.revoke', group: 'Sertifikat', label: 'Mencabut / mengaktifkan kembali sertifikat', roles: ['ADMIN', 'HMP'] },
   { key: 'cert.download', group: 'Sertifikat', label: 'Mengunduh PDF sertifikat peserta (internal)', roles: ['ADMIN', 'HMP'] },
 
