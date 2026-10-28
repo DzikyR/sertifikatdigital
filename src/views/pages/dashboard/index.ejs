@@ -49,7 +49,7 @@
     { label: 'Email Terkirim', value: sent, sub: failed ? `${failed} gagal dikirim` : `${fmtNumber(cert.downloads)} kali diunduh`, warn: failed > 0 },
   ]; %>
   <% tiles.forEach((t) => { %>
-    <<%= t.href ? 'a href=' + t.href : 'div' %> class="card relative overflow-hidden p-5 <%= t.href ? 'transition hover:border-tsu-300 hover:shadow-md' : '' %>">
+    <<%= t.href ? 'a' : 'div' %><% if (t.href) { %> href="<%= t.href %>"<% } %> class="card relative overflow-hidden p-5 <%= t.href ? 'transition hover:border-tsu-300 hover:shadow-md' : '' %>">
       <% if (t.accent) { %><span class="absolute inset-x-0 top-0 h-1 bg-gold-400"></span><% } %>
       <p class="text-sm font-medium text-slate-500"><%= t.label %></p>
       <p class="mt-2 text-3xl font-extrabold tabular-nums text-slate-900"><%= fmtNumber(t.value) %></p>
@@ -175,7 +175,7 @@
     <ul class="divide-y divide-slate-100 border-t border-slate-100">
       <% stats.recentEvents.forEach((e) => { const meta = EVENT_STATUS_META[e.status]; %>
         <li>
-          <<%= user.role === 'SUPER_ADMIN' ? 'div' : `a href="/events/${e.id}"` %> class="flex flex-wrap items-center gap-3 px-6 py-3 <%= user.role === 'SUPER_ADMIN' ? '' : 'hover:bg-slate-50' %>">
+          <<%= user.role === 'SUPER_ADMIN' ? 'div' : 'a' %><% if (user.role !== 'SUPER_ADMIN') { %> href="/events/<%= e.id %>"<% } %> class="flex flex-wrap items-center gap-3 px-6 py-3 <%= user.role === 'SUPER_ADMIN' ? '' : 'hover:bg-slate-50' %>">
             <div class="min-w-0 flex-1">
               <p class="truncate font-medium text-slate-900"><%= e.title %></p>
               <p class="text-xs text-slate-500"><%= ORGANIZER_LABELS[e.organizerType] %> &middot; <%= fmtDate(e.eventDate) %> &middot; <%= e._count.certificates %> peserta</p>
