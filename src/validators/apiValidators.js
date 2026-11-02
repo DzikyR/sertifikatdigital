@@ -29,6 +29,10 @@ const eventFields = (optional) => {
   ];
 };
 
+const linkNumbering = [
+  body('targetEventId', 'Pilih event tujuan.').isString().isLength({ min: 10, max: 40 }).matches(/^[a-z0-9]+$/i),
+];
+
 const listEvents = [
   ...pagination,
   query('status').optional().isIn(EVENT_STATUSES),
@@ -153,6 +157,6 @@ const publicSearch = [
 ];
 
 module.exports = {
-  id, pagination, eventFields, listEvents, review, signatureFields, libraryFields, useSignature, signatureToggle, logoFields, listParticipants, participantFields, bulkIds, issueIds, withdraw, blast,
+  id, pagination, eventFields, linkNumbering, listEvents, review, signatureFields, libraryFields, useSignature, signatureToggle, logoFields, listParticipants, participantFields, bulkIds, issueIds, withdraw, blast,
   password, createUser, updateUser, approveRequest, setFeature, listUsers, listLogs, publicSearch,
 };

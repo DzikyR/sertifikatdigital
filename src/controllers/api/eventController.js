@@ -2,6 +2,7 @@ const fs = require('fs/promises');
 const prisma = require('../../config/database');
 const eventService = require('../../services/eventService');
 const participantService = require('../../services/participantService');
+const numberingService = require('../../services/numberingService');
 const pdfService = require('../../services/pdfService');
 const blastService = require('../../services/blastService');
 const audit = require('../../services/auditService');
@@ -50,6 +51,20 @@ exports.remove = async (req, res) => {
   await eventService.remove(req.event);
   await audit.log({ req, action: 'EVENT_DELETE', entity: 'Event', entityId: req.event.id, meta: { title: req.event.title } });
   res.json({ success: true, message: 'Event dihapus.' });
+};
+
+// ---------------- Penomoran terhubung ----------------
+exports.linkNumbering = async (req, res) => {
+  const { targetEventId } = req.validated;
+  const result = await numberingService.link(req.event, targetEventId, req.user);
+  await audit.log({ req, action: 'NUMBERING_LINK', entity: 'Event', entityId: req.event.id, meta: { targetEventId, ...result } });
+  res.json({ success: true, data: result, message: `Penomoran terhubung. Nomor urut berikutnya: ${result.nextSeq}.` });
+};
+
+exports.unlinkNumbering = async (req, res) => {
+  const result = await numberingService.unlink(req.event);
+  await audit.log({ req, action: 'NUMBERING_UNLINK', entity: 'Event', entityId: req.event.id, meta: result });
+  res.json({ success: true, data: result, message: 'Penomoran dilepas. Event ini kembali memakai nomor urut sendiri.' });
 };
 
 // ---------------- Template ----------------

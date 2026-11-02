@@ -2,6 +2,7 @@ const prisma = require('../../config/database');
 const statsService = require('../../services/statsService');
 const eventService = require('../../services/eventService');
 const participantService = require('../../services/participantService');
+const numberingService = require('../../services/numberingService');
 const adminService = require('../../services/adminService');
 const featureService = require('../../services/featureService');
 const signatureService = require('../../services/signatureService');
@@ -41,9 +42,10 @@ exports.eventNew = (req, res) => {
 };
 
 exports.eventShow = async (req, res) => {
-  const [event, participants] = await Promise.all([
+  const [event, participants, numbering] = await Promise.all([
     eventService.getDetail(req.user, req.event.id),
     participantService.list(req.event, { page: 1, pageSize: 100, ...req.validated }),
+    numberingService.panel(req.user, req.event),
   ]);
   // TTD pustaka yang bisa dipilih penyelenggara (aktif & diizinkan untuk jenis event ini)
   const used = new Set(event.signatures.map((s) => s.librarySignatureId));
@@ -57,6 +59,7 @@ exports.eventShow = async (req, res) => {
     breadcrumbs: [{ label: 'Event Sertifikat', href: '/events' }, { label: event.title }],
     event,
     participants,
+    numbering,
     signatureLibrary,
     query: req.validated,
     scripts: ['/js/pages/event-show.js'],

@@ -34,6 +34,7 @@ const isIssuedManager = (user, event) => event.status === S.PUBLISHED
 const ACTIONS = {
   view: { base: canView },
   edit: { base: canEdit }, // info event (judul, tanggal, format nomor)
+  linkNumbering: { base: canEdit }, // hubungkan / lepaskan penomoran dengan event lain
   editTemplate: { base: canEdit, feature: 'event.template' },
   editLayout: { base: canEdit, feature: 'event.builder' },
   editParticipants: { base: canEdit, feature: 'event.participants' },

@@ -21,17 +21,20 @@ const safeFilename = (str) => String(str).replace(/[^\w\- ]+/g, '').trim().repla
 /**
  * Format nomor sertifikat.
  * Token: {YYYY} {MM} {ROMAN_MM} {EID} {SEQ:n}
+ * `code` = nilai {EID}: kode event, atau kode grup bila event terhubung ke grup penomoran.
  */
-function formatCertNumber(format, { eventDate, eventId, seq }) {
+const eventCode = (eventId) => eventId.slice(-5).toUpperCase();
+
+function formatCertNumber(format, { eventDate, code, seq }) {
   const d = new Date(eventDate);
   return format
     .replace(/\{YYYY\}/g, String(d.getUTCFullYear()))
     .replace(/\{MM\}/g, String(d.getUTCMonth() + 1).padStart(2, '0'))
     .replace(/\{ROMAN_MM\}/g, ROMAN[d.getUTCMonth()])
-    .replace(/\{EID\}/g, eventId.slice(-5).toUpperCase())
+    .replace(/\{EID\}/g, code)
     .replace(/\{SEQ(?::(\d))?\}/g, (_m, pad) => String(seq).padStart(Number(pad || 1), '0'));
 }
 
 const CERT_FORMAT_REGEX = /^(?=.*\{SEQ(?::\d)?\})[A-Za-z0-9/\-._ {}:]+$/;
 
-module.exports = { formatDateId, formatDayId, maskEmail, safeFilename, formatCertNumber, CERT_FORMAT_REGEX };
+module.exports = { formatDateId, formatDayId, maskEmail, safeFilename, eventCode, formatCertNumber, CERT_FORMAT_REGEX };
