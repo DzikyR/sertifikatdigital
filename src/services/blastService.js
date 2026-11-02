@@ -48,7 +48,7 @@ async function worker(event, state, actorId) {
 
   const queue = await prisma.certificate.findMany({
     where: { eventId: event.id, emailStatus: 'QUEUED' },
-    orderBy: { certificateNumber: 'asc' },
+    orderBy: { seqNo: 'asc' },
   });
 
   const next = async () => {

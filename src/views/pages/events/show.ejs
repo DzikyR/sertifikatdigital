@@ -503,6 +503,49 @@
       <%- include('form', { event }) %>
       <% if (!p.edit) { %><p class="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Info event terkunci pada status <strong><%= meta.label %></strong>.</p><% } %>
     </div>
+    <div class="card mt-6 max-w-3xl">
+      <h2 class="font-bold text-slate-900">Penomoran Terhubung</h2>
+      <p class="mt-1 text-sm text-slate-600">Hubungkan event yang masih satu acara (mis. Peserta dan Panitia) agar nomor sertifikatnya berurutan. Nomor urut berikutnya: <strong class="tabular-nums"><%= numbering.nextSeq %></strong>.</p>
+      <% if (numbering.group) { %>
+        <div class="mt-4 overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-left text-slate-500"><tr><th class="py-2 pr-4 font-medium">Event</th><th class="py-2 pr-4 font-medium">Sertifikat</th><th class="py-2 font-medium">Nomor urut</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+              <% numbering.members.forEach((m) => { %>
+                <tr>
+                  <td class="py-2 pr-4"><% if (m.id === event.id) { %><strong><%= m.title %></strong><% } else { %><a class="text-tsu-700 hover:underline" href="/events/<%= m.id %>"><%= m.title %></a><% } %></td>
+                  <td class="py-2 pr-4 tabular-nums"><%= m.count %></td>
+                  <td class="py-2 tabular-nums"><%= m.count ? `${m.first} – ${m.last}` : '–' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% if (p.linkNumbering) { %>
+          <% if (numbering.isAnchor && numbering.members.length > 1) { %>
+            <p class="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Ini event acuan grup. Lepaskan dulu event lain yang terhubung sebelum melepaskan event ini.</p>
+          <% } else { %>
+            <button class="btn btn-outline mt-4" data-action="POST <%= base %>/numbering/unlink" data-confirm="Lepaskan event ini dari grup? Nomor sertifikatnya diulang dari 1 memakai nomor urut sendiri." data-confirm-title="Lepaskan Penomoran">Lepaskan dari Grup</button>
+          <% } %>
+        <% } %>
+      <% } else if (p.linkNumbering && numbering.candidates.length) { %>
+        <form data-api-form data-method="POST" action="<%= base %>/numbering/link" class="mt-4 space-y-3">
+          <div>
+            <label for="targetEventId" class="form-label">Lanjutkan nomor dari event</label>
+            <select id="targetEventId" name="targetEventId" required class="form-input">
+              <option value="">Pilih event</option>
+              <% numbering.candidates.forEach((c) => { %><option value="<%= c.id %>"><%= c.title %> (berikutnya: <%= c.nextSeq %>)</option><% }) %>
+            </select>
+            <p class="mt-1 text-xs text-slate-500">Format nomor event ini mengikuti event yang dipilih.<% if (event.stats.participants) { %> <%= event.stats.participants %> sertifikat di event ini akan dinomori ulang.<% } %> Nomor event yang dipilih tidak berubah.</p>
+          </div>
+          <button type="submit" class="btn btn-primary">Hubungkan Penomoran</button>
+        </form>
+      <% } else if (p.linkNumbering) { %>
+        <p class="mt-4 text-sm text-slate-500">Belum ada event lain yang dapat dihubungkan.</p>
+      <% } else { %>
+        <p class="mt-4 text-sm text-slate-500">Event ini tidak terhubung ke event lain.</p>
+      <% } %>
+    </div>
     <% if (p.deleteEvent) { %>
       <div class="mt-6 max-w-3xl rounded-2xl border border-red-200 bg-white p-6">
         <h2 class="font-bold text-red-700">Hapus Event</h2>

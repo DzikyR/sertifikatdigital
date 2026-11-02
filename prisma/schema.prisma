@@ -96,7 +96,11 @@ model Event {
   // Format nomor sertifikat. Token: {YYYY} {MM} {ROMAN_MM} {EID} {SEQ:n}
   // Default "INF/{EID}/{YYYY}/{SEQ:4}" -> INF/K3X9Q/2026/0001 (EID = kode unik event)
   certNumberFormat String @default("INF/{EID}/{YYYY}/{SEQ:4}") @db.VarChar(100)
-  certNumberSeq    Int    @default(0) // counter terakhir yang dipakai
+  certNumberSeq    Int    @default(0) // counter terakhir yang dipakai (hanya bila tidak terhubung ke grup)
+
+  // Terhubung ke grup = memakai counter & kode {EID} milik grup, bukan milik event ini
+  numberingGroupId String?
+  numberingGroup   NumberingGroup? @relation(fields: [numberingGroupId], references: [id], onDelete: SetNull)
 
   // Template background (disimpan di storage/uploads/templates)
   templatePath   String? @db.VarChar(255)
@@ -133,6 +137,21 @@ model Event {
   @@index([status])
   @@index([organizerType])
   @@index([createdById])
+  @@index([numberingGroupId])
+}
+
+// Grup penomoran: event yang berkaitan (mis. Peserta & Panitia pada acara yang sama) berbagi satu counter.
+model NumberingGroup {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(200) // judul event acuan saat grup dibuat
+  code      String   @db.VarChar(10) // nilai {EID} bersama = kode event acuan, agar nomornya tidak berubah
+  lastSeq   Int      @default(0) // nomor urut terakhir yang dipakai grup
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events Event[]
+
+  @@map("numbering_groups")
 }
 
 // Pustaka tanda tangan resmi: hanya Kaprodi/Admin Prodi yang mengunggah & mengelola.
@@ -205,6 +224,7 @@ model Certificate {
   eventId           String
   event             Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   certificateNumber String  @unique @db.VarChar(100)
+  seqNo             Int // nomor urut di dalam certificateNumber
   participantName   String  @db.VarChar(150)
   participantEmail  String  @db.VarChar(191)
   participantRole   String  @default("Peserta") @db.VarChar(60) // Peserta / Pembicara / Panitia

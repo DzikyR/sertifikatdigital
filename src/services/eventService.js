@@ -6,6 +6,7 @@ const { ROLES, EVENT_STATUS: S } = require('../utils/constants');
 const { defaultLayout } = require('./layoutService');
 const { permissionsFor } = require('./eventPolicy');
 const signatureService = require('./signatureService');
+const numberingService = require('./numberingService');
 
 const MAX_TEMPLATE_SIDE = 4000; // px; template lebih besar diperkecil agar PDF tetap ringan
 const MIN_TEMPLATE_SIDE = 600;
@@ -107,7 +108,7 @@ async function remove(event) {
     prisma.eventSignature.findMany({ where: { eventId: event.id }, select: { imagePath: true } }),
     prisma.eventLogo.findMany({ where: { eventId: event.id }, select: { imagePath: true } }),
   ]);
-  await prisma.event.delete({ where: { id: event.id } }); // cascade: signatures, logos & certificates
+  await numberingService.deleteEvent(event.id); // cascade: signatures, logos & certificates
   // Gambar TTD milik pustaka (dipakai bersama) tidak ikut dihapus
   const libraryImages = new Set((await prisma.signatureLibrary.findMany({
     where: { imagePath: { in: signatures.map((s) => s.imagePath) } }, select: { imagePath: true },

@@ -28,6 +28,10 @@ one.get('/', event.show);
 one.patch('/', can('edit'), v.eventFields(true), validate, event.update);
 one.delete('/', can('deleteEvent'), event.remove);
 
+// Penomoran terhubung: nomor event ini melanjutkan nomor event lain
+one.post('/numbering/link', can('linkNumbering'), v.linkNumbering, validate, event.linkNumbering);
+one.post('/numbering/unlink', can('linkNumbering'), event.unlinkNumbering);
+
 // Template background
 one.post('/template', can('editTemplate'), templateUpload.single('template'), event.uploadTemplate);
 one.get('/template/image', event.templateImage);

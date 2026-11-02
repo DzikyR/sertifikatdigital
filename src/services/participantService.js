@@ -3,10 +3,10 @@ const ExcelJS = require('exceljs');
 const validator = require('validator');
 const prisma = require('../config/database');
 const AppError = require('../utils/AppError');
-const { formatCertNumber } = require('../utils/format');
 const { generateVerificationCode, signCertificate } = require('../utils/certCrypto');
 const storage = require('../utils/storage');
 const blastService = require('./blastService');
+const numberingService = require('./numberingService');
 
 const MAX_ROWS = 2000;
 
@@ -256,18 +256,15 @@ async function importParticipants(event, buffer) {
 
 async function createCertificates(event, participants) {
   try {
-    await prisma.$transaction(async (tx) => {
-      const { certNumberSeq: last } = await tx.event.update({
-        where: { id: event.id },
-        data: { certNumberSeq: { increment: participants.length } },
-        select: { certNumberSeq: true },
-      });
-      const start = last - participants.length + 1;
+    await numberingService.withNumberingLock(async (tx) => {
+      const { event: fresh, group, start } = await numberingService.reserve(tx, event.id, participants.length);
 
       const data = participants.map((p, i) => {
+        const seqNo = start + i;
         const cert = {
           eventId: event.id,
-          certificateNumber: formatCertNumber(event.certNumberFormat, { eventDate: event.eventDate, eventId: event.id, seq: start + i }),
+          seqNo,
+          certificateNumber: numberingService.buildNumber(fresh, group, seqNo),
           participantName: p.name,
           participantEmail: p.email,
           participantRole: p.role,
@@ -280,37 +277,14 @@ async function createCertificates(event, participants) {
     });
   } catch (err) {
     if (err.code === 'P2002') {
-      throw new AppError('Nomor sertifikat bentrok dengan event lain. Ubah format nomor sertifikat (mis. tambahkan {EID}).', 409);
+      throw new AppError('Nomor sertifikat bentrok dengan event lain. Jika event itu masih satu acara, hubungkan penomorannya di tab Info Event; jika tidak, ubah format nomor (mis. tambahkan {EID}).', 409);
     }
     throw err;
   }
 }
 
 /** Nomori ulang semua sertifikat (dipanggil jika format nomor / tanggal event berubah sebelum terbit). */
-async function renumber(event) {
-  const certs = await prisma.certificate.findMany({ where: { eventId: event.id }, orderBy: { createdAt: 'asc' } });
-  try {
-    await prisma.$transaction(async (tx) => {
-      // Tahap 1: nomor sementara agar tidak bentrok unique constraint saat menukar nomor
-      for (const c of certs) {
-        await tx.certificate.update({ where: { id: c.id }, data: { certificateNumber: `tmp-${c.id}` } });
-      }
-      let seq = 0;
-      for (const c of certs) {
-        seq += 1;
-        const certificateNumber = formatCertNumber(event.certNumberFormat, { eventDate: event.eventDate, eventId: event.id, seq });
-        await tx.certificate.update({
-          where: { id: c.id },
-          data: { certificateNumber, signatureHash: signCertificate({ ...c, certificateNumber }) },
-        });
-      }
-      await tx.event.update({ where: { id: event.id }, data: { certNumberSeq: seq } });
-    }, { timeout: 60000 });
-  } catch (err) {
-    if (err.code === 'P2002') throw new AppError('Format nomor menghasilkan nomor yang bentrok dengan event lain.', 409);
-    throw err;
-  }
-}
+const { renumber } = numberingService;
 
 /**
  * Terbitkan sertifikat (dapat diakses publik: verifikasi, pencarian, unduh).
@@ -367,7 +341,7 @@ async function list(event, { q, emailStatus, issueStatus, page = 1, pageSize = 5
     prisma.certificate.count({ where }),
     prisma.certificate.findMany({
       where,
-      orderBy: { certificateNumber: 'asc' },
+      orderBy: [{ seqNo: 'asc' }, { certificateNumber: 'asc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
@@ -455,11 +429,8 @@ async function remove(event, certificateId) {
   if (!count) throw new AppError('Peserta tidak ditemukan.', 404);
 }
 
-async function removeAll(event) {
-  await prisma.$transaction([
-    prisma.certificate.deleteMany({ where: { eventId: event.id } }),
-    prisma.event.update({ where: { id: event.id }, data: { certNumberSeq: 0 } }),
-  ]);
+function removeAll(event) {
+  return numberingService.clearCertificates(event.id);
 }
 
 async function setStatus(event, certificateId, status) {
